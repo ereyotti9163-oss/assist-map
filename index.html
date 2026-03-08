@@ -1,136 +1,51 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシストマップ</title>
-    <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; }
-        #map { height: 100vh; width: 100vw; cursor: crosshair; }
-        #controls {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            z-index: 1000;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-        }
-        .distance-panel {
-            margin-top: 10px;
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #333;
-            border-top: 1px solid #ccc;
-            padding-top: 10px;
-        }
-        input {
-            padding: 8px;
-            width: 180px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            padding: 8px 12px;
-            margin-right: 5px;
-            border: none;
-            background-color: #007bff;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover { background-color: #0056b3; }
-        #clearButton { background-color: #dc3545; }
-        #undoButton { background-color: #ffc107; color: #333;}
-    </style>
-</head>
-<body>
-    <div id="map"></div>
-    <div id="controls">
-        <input type="text" id="coordInput" placeholder="緯度, 経度">
-        <button id="jumpButton">ジャンプ</button>
-        <hr>
-        <button id="clearButton">ルートをクリア</button>
-        <button id="undoButton">元に戻す</button>
-        <div class="distance-panel">
-            総距離: <span id="totalDistance">0.00</span> km
-        </div>
-    </div>
+<div id="floating-panel">
+  <input id="address" type="text" placeholder="住所または緯度,経度を入力" style="width:250px;">
+  <input id="submit" type="button" value="検索">
+</div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // 初期地点：八幡市男山
-        var map = L.map('map').setView([34.8824, 135.6997], 15);
+<script>
+function initMap() {
+  const map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 15,
+    center: { lat: 34.887, lng: 135.705 }, // 八幡市付近
+  });
+  const geocoder = new google.maps.Geocoder();
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+  document.getElementById("submit").addEventListener("click", () => {
+    geocodeAddress(geocoder, map);
+  });
+}
 
-        var markers = [];
-        var polyline;
+function geocodeAddress(geocoder, map) {
+  const input = document.getElementById("address").value;
+  
+  // 緯度経度（数値,数値）の形式かチェック
+  const latlngStr = input.split(",", 2);
+  const latlng = {
+    lat: parseFloat(latlngStr[0]),
+    lng: parseFloat(latlngStr[1]),
+  };
 
-        function updateDistance() {
-            var total = 0;
-            if (markers.length > 1) {
-                for (var i = 0; i < markers.length - 1; i++) {
-                    total += markers[i].getLatLng().distanceTo(markers[i+1].getLatLng());
-                }
-            }
-            document.getElementById('totalDistance').textContent = (total / 1000).toFixed(2);
-        }
-
-        map.on('click', function(e) {
-            var marker = L.marker(e.latlng).addTo(map);
-            markers.push(marker);
-            var latlngs = markers.map(function(m) { return m.getLatLng(); });
-            if (polyline) { map.removeLayer(polyline); }
-            polyline = L.polyline(latlngs, {color: 'red', weight: 4}).addTo(map);
-            updateDistance();
+  if (!isNaN(latlng.lat) && !isNaN(latlng.lng)) {
+    // 座標として処理
+    map.setCenter(latlng);
+    new google.maps.Marker({
+      position: latlng,
+      map: map,
+    });
+  } else {
+    // 住所として処理
+    geocoder.geocode({ address: input }, (results, status) => {
+      if (status === "OK") {
+        map.setCenter(results[0].geometry.location);
+        new google.maps.Marker({
+          map: map,
+          position: results[0].geometry.location,
         });
-
-        document.getElementById('clearButton').addEventListener('click', function() {
-            markers.forEach(function(m) { map.removeLayer(m); });
-            markers = [];
-            if (polyline) { map.removeLayer(polyline); polyline = null; }
-            updateDistance();
-        });
-
-        document.getElementById('undoButton').addEventListener('click', function() {
-            if (markers.length > 0) {
-                var lastMarker = markers.pop();
-                map.removeLayer(lastMarker);
-                if (polyline) { map.removeLayer(polyline); }
-                if (markers.length > 1) {
-                    var latlngs = markers.map(function(m) { return m.getLatLng(); });
-                    polyline = L.polyline(latlngs, {color: 'red', weight: 4}).addTo(map);
-                } else {
-                    polyline = null;
-                }
-                updateDistance();
-            }
-        });
-
-        // ジャンプ機能
-        document.getElementById('jumpButton').addEventListener('click', function() {
-            var input = document.getElementById('coordInput').value;
-            var coords = input.split(',');
-            if (coords.length === 2) {
-                var lat = parseFloat(coords[0].trim());
-                var lng = parseFloat(coords[1].trim());
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    map.setView([lat, lng], 15);
-                    L.marker([lat, lng]).addTo(map).bindPopup("ジャンプ地点").openPopup();
-                } else {
-                    alert("正しい数値を入力してください");
-                }
-            } else {
-                alert("緯度と経度をカンマで区切ってください");
-            }
-        });
-    </script>
-</body>
-</html>
+      } else {
+        alert("検索に失敗しました: " + status);
+      }
+    });
+  }
+}
+</script>
