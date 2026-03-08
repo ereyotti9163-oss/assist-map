@@ -3,16 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サイクリスト用自由ルート描画アプリ</title>
-<link rel="manifest" href="./manifest.json">
+    <title>アシストマップ</title>
+    <link rel="manifest" href="./manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: sans-serif; }
-        #map { 
-            height: 100vh; 
-            width: 100vw; 
-            cursor: crosshair; /* マウスポインタを十字カーソルに変更 */
-        }
+        #map { height: 100vh; width: 100vw; cursor: crosshair; }
         #controls {
             position: absolute;
             top: 10px;
@@ -31,6 +27,13 @@
             border-top: 1px solid #ccc;
             padding-top: 10px;
         }
+        input {
+            padding: 8px;
+            width: 180px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
         button {
             padding: 8px 12px;
             margin-right: 5px;
@@ -43,12 +46,14 @@
         button:hover { background-color: #0056b3; }
         #clearButton { background-color: #dc3545; }
         #undoButton { background-color: #ffc107; color: #333;}
-        #undoButton:hover { background-color: #e0a800; }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div id="controls">
+        <input type="text" id="coordInput" placeholder="緯度, 経度">
+        <button id="jumpButton">ジャンプ</button>
+        <hr>
         <button id="clearButton">ルートをクリア</button>
         <button id="undoButton">元に戻す</button>
         <div class="distance-panel">
@@ -58,17 +63,16 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // 八幡市男山を初期地点に設定
+        // 初期地点：八幡市男山
         var map = L.map('map').setView([34.8824, 135.6997], 15);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        var markers = []; 
-        var polyline;    
+        var markers = [];
+        var polyline;
 
-        // 距離計算関数
         function updateDistance() {
             var total = 0;
             if (markers.length > 1) {
@@ -79,44 +83,55 @@
             document.getElementById('totalDistance').textContent = (total / 1000).toFixed(2);
         }
 
+        // クリックでマーカー設置
         map.on('click', function(e) {
             var marker = L.marker(e.latlng).addTo(map);
             markers.push(marker);
-            
             var latlngs = markers.map(function(m) { return m.getLatLng(); });
-            
             if (polyline) { map.removeLayer(polyline); }
             polyline = L.polyline(latlngs, {color: 'red', weight: 4}).addTo(map);
-            
             updateDistance();
         });
 
+        // クリアボタン
         document.getElementById('clearButton').addEventListener('click', function() {
             markers.forEach(function(m) { map.removeLayer(m); });
-            markers = []; 
+            markers = [];
             if (polyline) { map.removeLayer(polyline); polyline = null; }
             updateDistance();
         });
 
-        // 戻るボタンのイベントリスナー
+        // 元に戻すボタン
         document.getElementById('undoButton').addEventListener('click', function() {
             if (markers.length > 0) {
-                var lastMarker = markers.pop(); // 最後のマーカーを配列から削除
-                map.removeLayer(lastMarker);    // マップから削除
-
-                // ポリラインを再描画
+                var lastMarker = markers.pop();
+                map.removeLayer(lastMarker);
                 if (polyline) { map.removeLayer(polyline); }
                 if (markers.length > 1) {
                     var latlngs = markers.map(function(m) { return m.getLatLng(); });
                     polyline = L.polyline(latlngs, {color: 'red', weight: 4}).addTo(map);
-                } else if (markers.length === 1) {
-                    // マーカーが1つだけになった場合、ポリラインは不要
-                    polyline = null;
                 } else {
-                    // マーカーがない場合、ポリラインも不要
                     polyline = null;
                 }
-                updateDistance(); // 距離を更新
+                updateDistance();
+            }
+        });
+
+        // ★ジャンプ機能
+        document.getElementById('jumpButton').addEventListener('click', function() {
+            var input = document.getElementById('coordInput').value;
+            var coords = input.split(',');
+            if (coords.length === 2) {
+                var lat = parseFloat(coords[0].trim());
+                var lng = parseFloat(coords[1].trim());
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    map.setView([lat, lng], 15);
+                    L.marker([lat, lng]).addTo(map).bindPopup("ジャンプ地点").openPopup();
+                } else {
+                    alert("正しい数値を入力してください");
+                }
+            } else {
+                alert("緯度と経度をカンマで区切ってください");
             }
         });
     </script>
