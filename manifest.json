@@ -13,9 +13,14 @@
             "type": "image/png"
         },
         {
-            "src": "icons/icon-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png"
+            ​"src": "アイコン-512.jpg"
+            
+  "sizes": "512x512",
+            ​"type": "image/jpeg"
+
+        
+            
         }
     ]
+
 }
