@@ -82,7 +82,7 @@
 <body>
     <div class="control-panel">
         <div class="input-group">
-            <input type="text" id="addressInput" placeholder="住所・施設名を入力">
+            <input type="text" id="addressInput" placeholder="住所・施設名・緯度経度を入力">
             <button onclick="searchAddress()">検索</button>
         </div>
         <div class="btn-row">
@@ -112,6 +112,24 @@
         async function searchAddress() {
             const address = document.getElementById('addressInput').value;
             if (!address) return;
+
+            // 緯度経度形式のチェック (例: "35.681236, 139.767125" または "35.681236 139.767125")
+            const latLngRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$|^(-?\d+(\.\d+)?)\s+(-?\d+(\.\d+)?)$/;
+            const match = address.match(latLngRegex);
+
+            if (match) {
+                // 緯度経度として処理
+                const lat = parseFloat(match[1] || match[5]);
+                const lng = parseFloat(match[3] || match[7]);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    const pos = L.latLng(lat, lng);
+                    map.setView(pos, 16);
+                    addPin(pos);
+                    return;
+                }
+            }
+
+            // 住所検索として処理
             try {
                 const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
                 const data = await response.json();
@@ -120,7 +138,7 @@
                     map.setView(pos, 16);
                     addPin(pos);
                 } else {
-                    alert("指定された住所は見つかりませんでした。");
+                    alert("指定された住所や緯度経度は見つかりませんでした。");
                 }
             } catch (e) { 
                 alert("検索中にエラーが発生しました。"); 
@@ -134,9 +152,9 @@
                 const lastPos = markers[markers.length - 1].getLatLng();
                 const dist = lastPos.distanceTo(latlng);
                 distances.push(dist);
-                updateDisplay(); // 最新区間の距離表示がないため、引数を削除
+                updateDisplay();
             } else {
-                updateDisplay(); // 最新区間の距離表示がないため、引数を削除
+                updateDisplay();
             }
             markers.push(marker);
             polyline.addLatLng(latlng);
@@ -158,10 +176,10 @@
                 distances.pop();
             }
             
-            updateDisplay(); // 最新区間の距離表示がないため、引数を削除
+            updateDisplay();
         }
 
-        function updateDisplay() { // 引数を削除
+        function updateDisplay() {
             const total = distances.reduce((a, b) => a + b, 0);
             document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2);
         }
