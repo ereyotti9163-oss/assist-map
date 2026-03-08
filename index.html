@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サイクリスト用自由ルート描画アプリ</title>
+<link rel="manifest" href="./manifest.json">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { 
+            height: 100vh; 
+            width: 100vw; 
+            cursor: crosshair; /* マウスポインタを十字カーソルに変更 */
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+        .distance-panel {
+            margin-top: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        button {
+            padding: 8px 12px;
+            margin-right: 5px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0056b3; }
+        #clearButton { background-color: #dc3545; }
+        #undoButton { background-color: #ffc107; color: #333;}
+        #undoButton:hover { background-color: #e0a800; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="controls">
+        <button id="clearButton">ルートをクリア</button>
+        <button id="undoButton">元に戻す</button>
+        <div class="distance-panel">
+            総距離: <span id="totalDistance">0.00</span> km
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 八幡市男山を初期地点に設定
+        var map = L.map('map').setView([34.8824, 135.6997], 15);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var markers = []; 
+        var polyline;    
+
+        // 距離計算関数
+        function updateDistance() {
+            var total = 0;
+            if (markers.length > 1) {
+                for (var i = 0; i < markers.length - 1; i++) {
+                    total += markers[i].getLatLng().distanceTo(markers[i+1].getLatLng());
+                }
+            }
+            document.getElementById('totalDistance').textContent = (total / 1000).toFixed(2);
+        }
+
+        map.on('click', function(e) {
+            var marker = L.marker(e.latlng).addTo(map);
+            markers.push(marker);
+            
+            var latlngs = markers.map(function(m) { return m.getLatLng(); });
+            
+            if (polyline) { map.removeLayer(polyline); }
+            polyline = L.polyline(latlngs, {color: 'red', weight: 4}).addTo(map);
+            
+            updateDistance();
+        });
+
+        document.getElementById('clearButton').addEventListener('click', function() {
+            markers.forEach(function(m) { map.removeLayer(m); });
+            markers = []; 
+            if (polyline) { map.removeLayer(polyline); polyline = null; }
+            updateDistance();
+        });
+
+        // 戻るボタンのイベントリスナー
+        document.getElementById('undoButton').addEventListener('click', function() {
+            if (markers.length > 0) {
+                var lastMarker = markers.pop(); // 最後のマーカーを配列から削除
+                map.removeLayer(lastMarker);    // マップから削除
+
+                // ポリラインを再描画
+                if (polyline) { map.removeLayer(polyline); }
+                if (markers.length > 1) {
+                    var latlngs = markers.map(function(m) { return m.getLatLng(); });
+                    polyline = L.polyline(latlngs, {color: 'red', weight: 4}).addTo(map);
+                } else if (markers.length === 1) {
+                    // マーカーが1つだけになった場合、ポリラインは不要
+                    polyline = null;
+                } else {
+                    // マーカーがない場合、ポリラインも不要
+                    polyline = null;
+                }
+                updateDistance(); // 距離を更新
+            }
+        });
+    </script>
+</body>
+</html>
