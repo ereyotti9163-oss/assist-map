@@ -83,7 +83,6 @@
             document.getElementById('totalDistance').textContent = (total / 1000).toFixed(2);
         }
 
-        // クリックでマーカー設置
         map.on('click', function(e) {
             var marker = L.marker(e.latlng).addTo(map);
             markers.push(marker);
@@ -93,7 +92,6 @@
             updateDistance();
         });
 
-        // クリアボタン
         document.getElementById('clearButton').addEventListener('click', function() {
             markers.forEach(function(m) { map.removeLayer(m); });
             markers = [];
@@ -101,7 +99,6 @@
             updateDistance();
         });
 
-        // 元に戻すボタン
         document.getElementById('undoButton').addEventListener('click', function() {
             if (markers.length > 0) {
                 var lastMarker = markers.pop();
@@ -117,7 +114,7 @@
             }
         });
 
-        // ★ジャンプ機能
+        // ジャンプ機能
         document.getElementById('jumpButton').addEventListener('click', function() {
             var input = document.getElementById('coordInput').value;
             var coords = input.split(',');
