@@ -7,26 +7,60 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; cursor: crosshair; } /* ポインターを十字に変更 */
+        body { margin: 0; padding: 0; font-family: sans-serif; cursor: crosshair; }
         #map { width: 100vw; height: 100vh; z-index: 1; }
-        /* Leafletのデフォルトの手のひらを強制的に十字にする */
         .leaflet-container { cursor: crosshair !important; }
         
         .control-panel {
             position: absolute; top: 10px; left: 10px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95); padding: 12px; border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); width: 280px;
+            background: rgba(255, 255, 255, 0.95); padding: 10px; border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            max-width: 90%;
+            width: 250px;
         }
+
+        /* スマートフォン向けにレスポンシブな調整 */
+        @media (max-width: 600px) {
+            .control-panel {
+                width: calc(100% - 20px);
+                left: 10px;
+                right: 10px;
+                top: 8px;
+                padding: 8px;
+            }
+            .input-group, .btn-row {
+                flex-direction: row;
+                margin-bottom: 6px;
+            }
+            input, button {
+                padding: 7px; /* ボタン、入力欄のパディングをさらに小さく */
+                font-size: 13px; /* フォントサイズも小さく */
+            }
+            .info-panel {
+                padding: 6px; /* info-panelのパディングをさらに小さく */
+            }
+            .dist-label {
+                font-size: 10px; /* ラベルのフォントサイズを小さく */
+                margin-bottom: 2px; /* ラベルと値の間のマージンを詰める */
+            }
+            .dist-value {
+                font-size: 16px; /* 距離の値のフォントサイズを小さく */
+            }
+            hr {
+                margin: 6px 0 !important; /* 区切り線のマージンも詰める */
+            }
+        }
+
         .input-group { display: flex; gap: 5px; margin-bottom: 8px; }
         input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
         button { padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-row { display: flex; gap: 5px; margin-bottom: 8px; }
-        /* .btn-gps は削除 */
         .btn-clear { flex: 1; background: #dc3545; }
-        .info-panel { background: #f0f4f8; padding: 10px; border-radius: 6px; border: 1px solid #d1d9e6; }
-        .dist-label { font-size: 12px; color: #666; display: block; }
-        .dist-value { font-size: 20px; font-weight: bold; color: #333; }
+        .info-panel { background: #f0f4f8; padding: 8px; border-radius: 6px; border: 1px solid #d1d9e6; }
+        .dist-label { font-size: 11px; color: #666; display: block; margin-bottom: 3px;} /* 調整 */
+        .dist-value { font-size: 18px; font-weight: bold; color: #333; } /* 調整 */
         .total-dist { color: #d32f2f; }
+        hr { border: 0; border-top: 1px solid #d1d9e6; margin: 7px 0; } /* 調整 */
     </style>
 </head>
 <body>
@@ -36,13 +70,12 @@
             <button onclick="searchAddress()">検索</button>
         </div>
         <div class="btn-row">
-            <!-- 現在地ボタンを削除 -->
             <button class="btn-clear" onclick="popPin()">1つ消す</button>
         </div>
         <div class="info-panel">
             <span class="dist-label">最新区間の距離</span>
             <div class="dist-value"><span id="segmentDistance">0.00</span> km</div>
-            <hr style="border: 0; border-top: 1px solid #d1d9e6; margin: 8px 0;">
+            <hr>
             <span class="dist-label">全行程の合計距離</span>
             <div class="dist-value total-dist"><span id="totalDistance">0.00</span> km</div>
         </div>
@@ -57,7 +90,7 @@
 
         let markers = [];
         let polyline = L.polyline([], {color: '#d32f2f', weight: 5, opacity: 0.8}).addTo(map);
-        let distances = []; // 各区間の距離を格納
+        let distances = [];
 
         async function searchAddress() {
             const address = document.getElementById('addressInput').value;
@@ -78,17 +111,15 @@
             }
         }
 
-        // getCurrentLocation() 関数を削除
-
         function addPin(latlng) {
             const marker = L.marker(latlng).addTo(map);
             if (markers.length > 0) {
                 const lastPos = markers[markers.length - 1].getLatLng();
                 const dist = lastPos.distanceTo(latlng);
-                distances.push(dist); // 新しい区間の距離を追加
+                distances.push(dist);
                 updateDisplay(dist);
             } else {
-                updateDisplay(0); // 最初のピンの場合は0で更新
+                updateDisplay(0);
             }
             markers.push(marker);
             polyline.addLatLng(latlng);
@@ -97,23 +128,19 @@
         function popPin() {
             if (markers.length === 0) return;
 
-            // マーカーを削除
             const lastMarker = markers.pop();
             map.removeLayer(lastMarker);
 
-            // ポリラインの最後の点を削除
             const latlngs = polyline.getLatLngs();
             if (latlngs.length > 0) {
                 latlngs.pop();
                 polyline.setLatLngs(latlngs);
             }
             
-            // 距離情報を更新
             if (distances.length > 0) {
-                distances.pop(); // 最後の区間の距離を削除
+                distances.pop();
             }
             
-            // ディスプレイを更新
             const newTotal = distances.reduce((a, b) => a + b, 0);
             const lastSegment = distances.length > 0 ? distances[distances.length - 1] : 0;
             document.getElementById('segmentDistance').innerText = (lastSegment / 1000).toFixed(2);
