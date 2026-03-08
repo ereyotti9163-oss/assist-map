@@ -13,71 +13,70 @@
         
         .control-panel {
             position: absolute; top: 10px; left: 10px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95); padding: 8px; /* パディングを削減 */
+            background: rgba(255, 255, 255, 0.95); padding: 8px;
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             max-width: 90%;
             width: 250px;
-            font-size: 14px; /* 全体のフォントサイズを小さく */
+            font-size: 14px;
         }
 
-        /* スマートフォン向けにレスポンシブな調整 */
         @media (max-width: 600px) {
             .control-panel {
                 width: calc(100% - 20px);
                 left: 10px;
                 right: 10px;
                 top: 8px;
-                padding: 6px; /* スマホでのパディングをさらに削減 */
-                font-size: 13px; /* スマホでのフォントサイズをさらに小さく */
+                padding: 6px;
+                font-size: 13px;
             }
             .input-group, .btn-row {
                 flex-direction: row;
-                margin-bottom: 5px; /* マージンをさらに削減 */
+                margin-bottom: 5px;
             }
             input, button {
-                padding: 6px; /* ボタン、入力欄のパディングをさらに小さく */
-                font-size: 13px; /* フォントサイズも小さく */
+                padding: 6px;
+                font-size: 13px;
             }
             .info-panel {
-                padding: 5px; /* info-panelのパディングをさらに小さく */
+                padding: 5px;
             }
             .distance-display {
-                flex-direction: column; /* スマホでは距離表示を縦並びに戻す */
+                flex-direction: column;
                 align-items: flex-start;
                 gap: 3px;
             }
             .dist-label {
-                font-size: 10px; /* ラベルのフォントサイズを小さく */
-                margin-bottom: 0px; /* ラベルと値の間のマージンを詰める */
+                font-size: 10px;
+                margin-bottom: 0px;
             }
             .dist-value {
-                font-size: 14px; /* 距離の値のフォントサイズを小さく */
+                font-size: 14px;
             }
             hr {
-                margin: 5px 0 !important; /* 区切り線のマージンも詰める */
+                margin: 5px 0 !important;
             }
         }
 
-        .input-group { display: flex; gap: 5px; margin-bottom: 6px; } /* マージンを削減 */
-        input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; } /* パディング・フォントサイズ削減 */
-        button { padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; } /* パディング・フォントサイズ削減 */
-        .btn-row { display: flex; gap: 5px; margin-bottom: 6px; } /* マージンを削減 */
+        .input-group { display: flex; gap: 5px; margin-bottom: 6px; }
+        input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        button { padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .btn-row { display: flex; gap: 5px; margin-bottom: 6px; }
         .btn-clear { flex: 1; background: #dc3545; }
-        .info-panel { background: #f0f4f8; padding: 6px; border-radius: 6px; border: 1px solid #d1d9e6; } /* パディング削減 */
+        .info-panel { background: #f0f4f8; padding: 6px; border-radius: 6px; border: 1px solid #d1d9e6; }
         .distance-display {
             display: flex;
-            justify-content: space-around; /* 距離表示を横並びに */
+            justify-content: center; /* 中央寄せに変更 */
             align-items: center;
         }
         .distance-item {
             text-align: center;
-            flex: 1;
+            /* flex: 1; を削除して、要素の幅を内容に合わせる */
         }
-        .dist-label { font-size: 11px; color: #666; display: block; margin-bottom: 2px;} /* 調整 */
-        .dist-value { font-size: 16px; font-weight: bold; color: #333; } /* 調整 */
+        .dist-label { font-size: 11px; color: #666; display: block; margin-bottom: 2px;}
+        .dist-value { font-size: 16px; font-weight: bold; color: #333; }
         .total-dist { color: #d32f2f; }
-        hr { border: 0; border-top: 1px solid #d1d9e6; margin: 6px 0; } /* 調整 */
+        hr { border: 0; border-top: 1px solid #d1d9e6; margin: 6px 0; }
     </style>
 </head>
 <body>
@@ -91,11 +90,6 @@
         </div>
         <div class="info-panel">
             <div class="distance-display">
-                <div class="distance-item">
-                    <span class="dist-label">最新区間の距離</span>
-                    <div class="dist-value"><span id="segmentDistance">0.00</span> km</div>
-                </div>
-                <!-- <hr> を削除するか、横並びの場合は別の区切り要素を検討 -->
                 <div class="distance-item">
                     <span class="dist-label">全行程の合計距離</span>
                     <div class="dist-value total-dist"><span id="totalDistance">0.00</span> km</div>
@@ -140,9 +134,9 @@
                 const lastPos = markers[markers.length - 1].getLatLng();
                 const dist = lastPos.distanceTo(latlng);
                 distances.push(dist);
-                updateDisplay(dist);
+                updateDisplay(); // 最新区間の距離表示がないため、引数を削除
             } else {
-                updateDisplay(0);
+                updateDisplay(); // 最新区間の距離表示がないため、引数を削除
             }
             markers.push(marker);
             polyline.addLatLng(latlng);
@@ -164,15 +158,11 @@
                 distances.pop();
             }
             
-            const newTotal = distances.reduce((a, b) => a + b, 0);
-            const lastSegment = distances.length > 0 ? distances[distances.length - 1] : 0;
-            document.getElementById('segmentDistance').innerText = (lastSegment / 1000).toFixed(2);
-            document.getElementById('totalDistance').innerText = (newTotal / 1000).toFixed(2);
+            updateDisplay(); // 最新区間の距離表示がないため、引数を削除
         }
 
-        function updateDisplay(currentSegment) {
+        function updateDisplay() { // 引数を削除
             const total = distances.reduce((a, b) => a + b, 0);
-            document.getElementById('segmentDistance').innerText = (currentSegment / 1000).toFixed(2);
             document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2);
         }
 
