@@ -1,51 +1,92 @@
-<div id="floating-panel">
-  <input id="address" type="text" placeholder="住所または緯度,経度を入力" style="width:250px;">
-  <input id="submit" type="button" value="検索">
-</div>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>アシストマップ</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        #map { height: 100vh; width: 100%; }
+        #floating-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 5;
+            background-color: #fff;
+            padding: 10px;
+            border: 1px solid #999;
+            text-align: center;
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        input[type="text"] { width: 200px; padding: 5px; }
+        input[type="button"] { padding: 5px 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="floating-panel">
+        <input id="address" type="text" placeholder="住所 または 緯度,経度">
+        <input id="submit" type="button" value="検索">
+    </div>
+    <div id="map"></div>
 
-<script>
-function initMap() {
-  const map = new google.maps.Map(document.getElementById("map"), {
-    zoom: 15,
-    center: { lat: 34.887, lng: 135.705 }, // 八幡市付近
-  });
-  const geocoder = new google.maps.Geocoder();
+    <script>
+        let map;
+        let geocoder;
+        let marker;
 
-  document.getElementById("submit").addEventListener("click", () => {
-    geocodeAddress(geocoder, map);
-  });
-}
+        function initMap() {
+            // 初期表示は八幡市男山弓岡付近
+            const myLatLng = { lat: 34.8875, lng: 135.7056 };
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 15,
+                center: myLatLng,
+                mapTypeControl: true,
+            });
+            geocoder = new google.maps.Geocoder();
+            marker = new google.maps.Marker({
+                position: myLatLng,
+                map: map,
+                title: "現在地付近"
+            });
 
-function geocodeAddress(geocoder, map) {
-  const input = document.getElementById("address").value;
-  
-  // 緯度経度（数値,数値）の形式かチェック
-  const latlngStr = input.split(",", 2);
-  const latlng = {
-    lat: parseFloat(latlngStr[0]),
-    lng: parseFloat(latlngStr[1]),
-  };
+            document.getElementById("submit").addEventListener("click", () => {
+                geocodeAddress();
+            });
+            
+            // Enterキーでも検索できるように設定
+            document.getElementById("address").addEventListener("keypress", (e) => {
+                if (e.key === 'Enter') geocodeAddress();
+            });
+        }
 
-  if (!isNaN(latlng.lat) && !isNaN(latlng.lng)) {
-    // 座標として処理
-    map.setCenter(latlng);
-    new google.maps.Marker({
-      position: latlng,
-      map: map,
-    });
-  } else {
-    // 住所として処理
-    geocoder.geocode({ address: input }, (results, status) => {
-      if (status === "OK") {
-        map.setCenter(results[0].geometry.location);
-        new google.maps.Marker({
-          map: map,
-          position: results[0].geometry.location,
-        });
-      } else {
-        alert("検索に失敗しました: " + status);
-      }
-    });
-  }
-}
-</script>
+        function geocodeAddress() {
+            const input = document.getElementById("address").value;
+            if (!input) return;
+
+            // 緯度経度かどうかの判定
+            const regex = /^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
+            
+            if (regex.test(input)) {
+                const coords = input.split(",");
+                const newPos = { lat: parseFloat(coords[0]), lng: parseFloat(coords[1]) };
+                updateMap(newPos);
+            } else {
+                geocoder.geocode({ address: input }, (results, status) => {
+                    if (status === "OK") {
+                        updateMap(results[0].geometry.location);
+                    } else {
+                        alert("検索できませんでした: " + status);
+                    }
+                });
+            }
+        }
+
+        function updateMap(location) {
+            map.setCenter(location);
+            marker.setPosition(location);
+            map.setZoom(16);
+        }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY_HERE&callback=initMap" async defer></script>
+</body>
+</html>
