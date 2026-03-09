@@ -1,418 +1,163 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>アシストマップ</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
-    <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; cursor: crosshair; overflow: hidden; }
-        #map { width: 100vw; height: 100vh; z-index: 1; }
-        .leaflet-container { cursor: crosshair !important; }
-        
-        /* コントロールパネルを上部に配置し、スリム化 */
+/* コントロールパネルを上部に配置し、スリム化 */
+    .control-panel {
+        position: absolute; top: 8px; left: 8px; right: 8px; z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 5px 8px; /* パディングを削減 */
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* 影も控えめに */
+        display: flex;
+        flex-direction: column;
+        gap: 5px; /* 要素間の隙間を削減 */
+    }
+
+    .input-group { display: flex; gap: 5px; }
+    .input-group input { 
+        flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; 
+        font-size: 13px; /* フォントサイズを小さく */
+        height: 30px; /* 高さもスリムに */
+        box-sizing: border-box;
+    }
+    .input-group button { 
+        padding: 0 10px; /* 左右パディングを調整 */
+        background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; 
+        font-weight: bold; font-size: 13px; /* フォントサイズを小さく */
+        height: 30px; /* 高さもスリムに */
+        white-space: nowrap; /* ボタンテキストの折り返し防止 */
+    }
+    
+    .btn-row { display: flex; gap: 5px; }
+    .btn-row button { 
+        flex: 1; padding: 6px 8px; /* パディングを削減 */
+        background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; 
+        font-weight: bold; font-size: 13px; /* フォントサイズを小さく */
+        height: 30px; /* 高さもスリムに */
+        box-sizing: border-box;
+    }
+    .btn-clear { background: #dc3545; }
+
+    /* 新しく追加する合計距離表示枠 */
+    .total-distance-display {
+        width: 100%; /* 親要素の幅いっぱいに */
+        padding: 6px 8px; /* 他のボタンと同じパディング */
+        background: white; /* 白背景 */
+        color: #d32f2f; /* 赤い文字色 */
+        border: 1px solid #ccc; /* 枠線 */
+        border-radius: 4px; /* 角丸 */
+        font-weight: bold;
+        font-size: 13px;
+        height: 30px; /* 他の入力欄・ボタンと同じ高さ */
+        box-sizing: border-box;
+        display: flex; /* 中央揃えのため */
+        align-items: center; /* 垂直方向中央 */
+        justify-content: center; /* 水平方向中央 */
+    }
+    .total-distance-display .distance-value {
+        font-size: 15px; /* 少し大きめに */
+        margin-left: 4px;
+    }
+
+
+    /* フローティングQRボタン */
+    #qr-float-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        width: 50px; /* 小さな正円 */
+        height: 50px;
+        border-radius: 50%;
+        background-color: #007bff; /* シンプルな青 */
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        cursor: pointer;
+        border: none;
+        -webkit-tap-highlight-color: transparent; /* タップ時のハイライトを無効化 */
+    }
+
+    /* QRコードポップアップ（モーダル） */
+    .qr-popup-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        visibility: hidden; /* デフォルトで非表示 */
+        opacity: 0;
+        transition: visibility 0s, opacity 0.3s ease;
+    }
+    .qr-popup-overlay.visible {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .qr-popup-content {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        text-align: center;
+        max-width: 90%;
+        max-height: 90%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+    }
+    #popup-qrcode {
+        padding: 5px; /* QRコードの白い余白を確保 */
+        border: 1px solid #eee;
+        border-radius: 5px;
+    }
+    #popup-qrcode img {
+        width: 150px !important; /* ポップアップ内のQRコードサイズ */
+        height: 150px !important;
+        display: block;
+    }
+
+    /* 現在地マーカーのスタイル */
+    .current-location-icon {
+        background-color: #007bff; /* 青色の点 */
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        border: 2px solid white; /* 白い縁取り */
+        box-shadow: 0 0 5px rgba(0,0,0,0.5); /* 影 */
+    }
+
+    /* メディアクエリは必要に応じて調整 */
+    @media (max-width: 400px) {
         .control-panel {
-            position: absolute; top: 8px; left: 8px; right: 8px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 5px 8px; /* パディングを削減 */
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* 影も控えめに */
-            display: flex;
-            flex-direction: column;
-            gap: 5px; /* 要素間の隙間を削減 */
+            padding: 4px 6px;
+            gap: 4px;
         }
-
-        .input-group { display: flex; gap: 5px; }
-        .input-group input { 
-            flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; 
-            font-size: 13px; /* フォントサイズを小さく */
-            height: 30px; /* 高さもスリムに */
-            box-sizing: border-box;
-        }
-        .input-group button { 
-            padding: 0 10px; /* 左右パディングを調整 */
-            background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; 
-            font-weight: bold; font-size: 13px; /* フォントサイズを小さく */
-            height: 30px; /* 高さもスリムに */
-            white-space: nowrap; /* ボタンテキストの折り返し防止 */
-        }
-        
-        .btn-row { display: flex; gap: 5px; }
-        .btn-row button { 
-            flex: 1; padding: 6px 8px; /* パディングを削減 */
-            background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; 
-            font-weight: bold; font-size: 13px; /* フォントサイズを小さく */
-            height: 30px; /* 高さもスリムに */
-            box-sizing: border-box;
-        }
-        .btn-clear { background: #dc3545; }
-
-        /* 新しく追加する合計距離表示枠 */
-        .total-distance-display {
-            width: 100%; /* 親要素の幅いっぱいに */
-            padding: 6px 8px; /* 他のボタンと同じパディング */
-            background: white; /* 白背景 */
-            color: #d32f2f; /* 赤い文字色 */
-            border: 1px solid #ccc; /* 枠線 */
-            border-radius: 4px; /* 角丸 */
-            font-weight: bold;
-            font-size: 13px;
-            height: 30px; /* 他の入力欄・ボタンと同じ高さ */
-            box-sizing: border-box;
-            display: flex; /* 中央揃えのため */
-            align-items: center; /* 垂直方向中央 */
-            justify-content: center; /* 水平方向中央 */
+        .input-group input, .input-group button, .btn-row button, .total-distance-display {
+            height: 28px;
+            font-size: 12px;
+            padding: 4px 8px;
         }
         .total-distance-display .distance-value {
-            font-size: 15px; /* 少し大きめに */
-            margin-left: 4px;
+            font-size: 14px;
         }
-
-
-        /* フローティングQRボタン */
         #qr-float-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            width: 50px; /* 小さな正円 */
-            height: 50px;
-            border-radius: 50%;
-            background-color: #007bff; /* シンプルな青 */
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            cursor: pointer;
-            border: none;
-            -webkit-tap-highlight-color: transparent; /* タップ時のハイライトを無効化 */
+            width: 45px;
+            height: 45px;
+            font-size: 14px;
+            bottom: 15px;
+            right: 15px;
         }
-
-        /* QRコードポップアップ（モーダル） */
-        .qr-popup-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 2000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            visibility: hidden; /* デフォルトで非表示 */
-            opacity: 0;
-            transition: visibility 0s, opacity 0.3s ease;
-        }
-        .qr-popup-overlay.visible {
-            visibility: visible;
-            opacity: 1;
-        }
-
         .qr-popup-content {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
-            text-align: center;
-            max-width: 90%;
-            max-height: 90%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-        #popup-qrcode {
-            padding: 5px; /* QRコードの白い余白を確保 */
-            border: 1px solid #eee;
-            border-radius: 5px;
+            padding: 15px;
         }
         #popup-qrcode img {
-            width: 150px !important; /* ポップアップ内のQRコードサイズ */
-            height: 150px !important;
-            display: block;
+            width: 130px !important;
+            height: 130px !important;
         }
-
-        /* 現在地マーカーのスタイル */
-        .current-location-icon {
-            background-color: #007bff; /* 青色の点 */
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            border: 2px solid white; /* 白い縁取り */
-            box-shadow: 0 0 5px rgba(0,0,0,0.5); /* 影 */
-        }
-
-        /* メディアクエリは必要に応じて調整 */
-        @media (max-width: 400px) {
-            .control-panel {
-                padding: 4px 6px;
-                gap: 4px;
-            }
-            .input-group input, .input-group button, .btn-row button, .total-distance-display {
-                height: 28px;
-                font-size: 12px;
-                padding: 4px 8px;
-            }
-            .total-distance-display .distance-value {
-                font-size: 14px;
-            }
-            #qr-float-btn {
-                width: 45px;
-                height: 45px;
-                font-size: 14px;
-                bottom: 15px;
-                right: 15px;
-            }
-            .qr-popup-content {
-                padding: 15px;
-            }
-            #popup-qrcode img {
-                width: 130px !important;
-                height: 130px !important;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="control-panel">
-        <div class="input-group">
-            <input type="text" id="addressInput" placeholder="住所・施設名・緯度経度を入力">
-            <button onclick="searchAddress()">検索</button>
-        </div>
-        <div class="btn-row">
-            <button class="btn-clear" onclick="popPin()">ピン1つ消す</button>
-            <button onclick="northUp()">ノースアップ</button>
-            <button onclick="headingUp()">ヘディングアップ</button>
-        </div>
-        <!-- 新しく追加する合計距離表示枠 -->
-        <div class="total-distance-display">
-            合計距離: <span id="mainTotalDistance" class="distance-value">0.00</span> km
-        </div>
-    </div>
-
-    <div id="map"></div>
-
-    <!-- フローティングQRボタン -->
-    <button id="qr-float-btn" onclick="toggleQrPopup()">QR</button>
-
-    <!-- QRコードポップアップ -->
-    <div class="qr-popup-overlay" onclick="toggleQrPopup(event)">
-        <div class="qr-popup-content" onclick="event.stopPropagation()">
-            <div id="popup-qrcode"></div>
-            <!-- ポップアップから距離表示を削除 -->
-        </div>
-    </div>
-
-    <script>
-        const map = L.map('map').setView([34.8833, 135.7000], 15); // 初期表示は京都駅付近
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
-
-        let markers = [];
-        let polyline = L.polyline([], {color: '#d32f2f', weight: 5, opacity: 0.8}).addTo(map);
-        let currentLocationMarker = null; // 現在地マーカー
-        let totalDistance = 0; // 合計距離を直接保持
-
-        // 現在地取得と追跡
-        if (navigator.geolocation) {
-            navigator.geolocation.watchPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    const currentLatLng = L.latLng(lat, lng);
-
-                    if (currentLocationMarker) {
-                        currentLocationMarker.setLatLng(currentLatLng);
-                    } else {
-                        currentLocationMarker = L.marker(currentLatLng, {
-                            icon: L.divIcon({
-                                className: 'current-location-icon',
-                                // htmlはCSSで定義しているので不要
-                                iconSize: [20, 20],
-                                iconAnchor: [10, 10]
-                            })
-                        }).addTo(map);
-                    }
-                },
-                (error) => {
-                    console.error("現在位置の取得に失敗しました:", error);
-                },
-                {
-                    enableHighAccuracy: true, 
-                    maximumAge: 0,            
-                    timeout: 5000             
-                }
-            );
-        }
-
-        async function searchAddress() {
-            const address = document.getElementById('addressInput').value;
-            if (!address) return;
-
-            const latLngRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$|^(-?\d+(\.\d+)?)\s+(-?\d+(\.\d+)?)$/;
-            const match = address.match(latLngRegex);
-
-            if (match) {
-                const lat = parseFloat(match[1] || match[5]);
-                const lng = parseFloat(match[3] || match[7]);
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    const pos = L.latLng(lat, lng);
-                    map.setView(pos, 16);
-                    addPin(pos);
-                    return;
-                }
-            }
-
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-                const data = await response.json();
-                if (data.length > 0) {
-                    const pos = L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
-                    map.setView(pos, 16);
-                    addPin(pos);
-                } else {
-                    alert("指定された住所や緯度経度は見つかりませんでした。");
-                }
-            } catch (e) { 
-                alert("検索中にエラーが発生しました。"); 
-                console.error(e);
-            }
-        }
-
-        function addPin(latlng) {
-            const marker = L.marker(latlng).addTo(map);
-            if (markers.length > 0) {
-                const lastPos = markers[markers.length - 1].getLatLng();
-                const dist = lastPos.distanceTo(latlng);
-                totalDistance += dist; 
-            }
-            markers.push(marker);
-            polyline.addLatLng(latlng);
-            updateDisplay();
-        }
-
-        function popPin() {
-            if (markers.length === 0) return;
-
-            const removedMarker = markers.pop();
-            map.removeLayer(removedMarker);
-
-            // 削除されたピンが起点だった場合の距離の再計算
-            if (markers.length > 0) {
-                totalDistance = 0; // 一旦リセット
-                for (let i = 0; i < markers.length - 1; i++) {
-                    totalDistance += markers[i].getLatLng().distanceTo(markers[i+1].getLatLng());
-                }
-            } else {
-                totalDistance = 0;
-            }
-
-            const latlngs = polyline.getLatLngs();
-            if (latlngs.length > 0) {
-                latlngs.pop();
-                polyline.setLatLngs(latlngs);
-            }
-            
-            updateDisplay();
-        }
-
-        function updateDisplay() {
-            // メインパネルの合計距離を更新
-            const formattedDistance = (totalDistance / 1000).toFixed(2);
-            document.getElementById('mainTotalDistance').innerText = formattedDistance;
-            generateQrCode(); // ピンの増減に合わせてQRコードデータを更新
-        }
-
-        // QRコード生成関数 (ポップアップ用)
-        let qrcodePopup = new QRCode(document.getElementById("popup-qrcode"), {
-            width : 150,
-            height : 150,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
-        });
-
-        function generateQrCode() {
-            let qrData = "現在のルート情報:\n";
-            if (markers.length > 0) {
-                markers.forEach((marker, index) => {
-                    const latlng = marker.getLatLng();
-                    qrData += `地点${index + 1}: Lat ${latlng.lat.toFixed(6)}, Lng ${latlng.lng.toFixed(6)}\n`;
-                });
-                qrData += `合計距離: ${(totalDistance / 1000).toFixed(2)} km\n`; // QRコードには距離情報を含める
-            } else {
-                qrData = "ピンがありません";
-            }
-            qrcodePopup.clear(); 
-            qrcodePopup.makeCode(qrData);
-        }
-
-        // QRコードポップアップ表示/非表示の切り替え
-        const qrPopupOverlay = document.querySelector('.qr-popup-overlay');
-        function toggleQrPopup(event) {
-            // ポップアップ内部のクリックで閉じないようにする
-            if (event && event.target.closest('.qr-popup-content')) {
-                return;
-            }
-            qrPopupOverlay.classList.toggle('visible');
-            if (qrPopupOverlay.classList.contains('visible')) {
-                // ポップアップが表示されるたびに最新の情報を元にQRコードを再生成
-                generateQrCode(); 
-            }
-        }
-
-        // ノースアップ機能
-        function northUp() {
-            map.setBearing(0); 
-        }
-
-        // ヘディングアップ機能
-        let headingUpEnabled = false;
-        function headingUp() {
-            headingUpEnabled = !headingUpEnabled; 
-
-            if (headingUpEnabled) {
-                alert("ヘディングアップを有効にしました。デバイスを動かして試してください。");
-                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    DeviceOrientationEvent.requestPermission()
-                        .then(permissionState => {
-                            if (permissionState === 'granted') {
-                                window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
-                            } else {
-                                alert('デバイスの向き情報へのアクセスが拒否されました。設定を確認してください。');
-                                headingUpEnabled = false; 
-                            }
-                        })
-                        .catch(console.error);
-                } else {
-                    window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
-                }
-            } else {
-                alert("ヘディングアップを無効にしました。");
-                window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation);
-                northUp(); 
-            }
-        }
-
-        function handleDeviceOrientation(event) {
-            if (event.alpha !== null) {
-                let heading = 360 - event.alpha; 
-                if (event.webkitCompassHeading !== undefined) {
-                    heading = event.webkitCompassHeading; 
-                    heading = 360 - heading; 
-                }
-                map.setBearing(heading);
-            }
-        }
-
-        map.on('click', e => addPin(e.latlng));
-
-        // 初期表示を更新 (ページロード時にQRコードを一度生成しておく)
-        updateDisplay();
-    </script>
-</body>
-</html>
+    }
+</style>
