@@ -42,16 +42,21 @@
                 padding: 5px;
             }
             .distance-display {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 3px;
+                flex-direction: row; /* スマートフォンでも横並びを維持 */
+                justify-content: space-around; /* 等間隔に配置 */
+                align-items: center;
+                gap: 5px; /* アイテム間のギャップを調整 */
+            }
+            .distance-item {
+                flex: 1; /* アイテムが均等な幅を占めるように */
+                min-width: 0; /* flexアイテムの最小幅をリセット */
             }
             .dist-label {
-                font-size: 10px;
-                margin-bottom: 0px;
+                font-size: 9px; /* より小さく */
+                margin-bottom: 1px; /* マージンを削減 */
             }
             .dist-value {
-                font-size: 14px;
+                font-size: 13px; /* より小さく */
             }
             hr {
                 margin: 5px 0 !important;
@@ -64,18 +69,24 @@
         .btn-row { display: flex; gap: 5px; margin-bottom: 6px; }
         .btn-clear { flex: 1; background: #dc3545; }
         .info-panel { background: #f0f4f8; padding: 6px; border-radius: 6px; border: 1px solid #d1d9e6; }
+        
+        /* コンパクトな距離表示のためにここを調整 */
         .distance-display {
             display: flex;
-            justify-content: center; /* 中央寄せに変更 */
+            justify-content: space-around; /* 各項目を等間隔に配置 */
             align-items: center;
+            flex-wrap: nowrap; /* 折り返しなし */
+            gap: 10px; /* アイテム間のギャップ */
         }
         .distance-item {
             text-align: center;
-            /* flex: 1; を削除して、要素の幅を内容に合わせる */
+            flex-shrink: 0; /* 縮まないようにする */
+            min-width: fit-content; /* 内容に合わせて最小幅を調整 */
         }
-        .dist-label { font-size: 11px; color: #666; display: block; margin-bottom: 2px;}
-        .dist-value { font-size: 16px; font-weight: bold; color: #333; }
+        .dist-label { font-size: 10px; color: #666; display: block; margin-bottom: 1px;}
+        .dist-value { font-size: 15px; font-weight: bold; color: #333; }
         .total-dist { color: #d32f2f; }
+        .segment-dist { color: #007bff; } /* 区間距離用の色を追加 */
         hr { border: 0; border-top: 1px solid #d1d9e6; margin: 6px 0; }
     </style>
 </head>
@@ -93,7 +104,11 @@
         <div class="info-panel">
             <div class="distance-display">
                 <div class="distance-item">
-                    <span class="dist-label">全行程の合計距離</span>
+                    <span class="dist-label">区間距離</span>
+                    <div class="dist-value segment-dist"><span id="segmentDistance">0.00</span> km</div>
+                </div>
+                <div class="distance-item">
+                    <span class="dist-label">合計距離</span>
                     <div class="dist-value total-dist"><span id="totalDistance">0.00</span> km</div>
                 </div>
             </div>
@@ -102,21 +117,6 @@
     <div id="map"></div>
 
     <script>
-        // Leaflet.RotatedMarker プラグインの読み込み
-        // Leaflet自体に回転機能があるため、RotatedMarkerは不要ですが、もしマーカー自体を回転させたい場合は利用します。
-        // 現状はマップの回転なので不要ですが、将来的な拡張のためにコメントアウトして残しておきます。
-        // L.Marker.addInitHook(function () {
-        //     var iconOptions = this.options.icon && this.options.icon.options;
-        //     var rotation = iconOptions && iconOptions.rotation;
-        //     if (rotation) {
-        //         this.on('add', function () {
-        //             var img = this._icon;
-        //             img.style.transform += ' rotate(' + rotation + 'deg)';
-        //         });
-        //     }
-        // });
-
-
         const map = L.map('map').setView([34.8833, 135.7000], 15); // 初期表示は京都駅付近
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
@@ -124,7 +124,7 @@
 
         let markers = [];
         let polyline = L.polyline([], {color: '#d32f2f', weight: 5, opacity: 0.8}).addTo(map);
-        let distances = [];
+        let segmentDistances = []; // 各区間距離を保持
         let currentLocationMarker = null; // 現在地マーカー
 
         // 現在地取得と追跡
@@ -207,10 +207,10 @@
             if (markers.length > 0) {
                 const lastPos = markers[markers.length - 1].getLatLng();
                 const dist = lastPos.distanceTo(latlng);
-                distances.push(dist);
+                segmentDistances.push(dist); // 区間距離を追加
                 updateDisplay();
             } else {
-                updateDisplay();
+                updateDisplay(); // 最初のピンでも表示を更新
             }
             markers.push(marker);
             polyline.addLatLng(latlng);
@@ -228,16 +228,19 @@
                 polyline.setLatLngs(latlngs);
             }
             
-            if (distances.length > 0) {
-                distances.pop();
+            if (segmentDistances.length > 0) {
+                segmentDistances.pop(); // 最新の区間距離を削除
             }
             
             updateDisplay();
         }
 
         function updateDisplay() {
-            const total = distances.reduce((a, b) => a + b, 0);
+            const total = segmentDistances.reduce((a, b) => a + b, 0);
             document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2);
+
+            const lastSegment = segmentDistances.length > 0 ? segmentDistances[segmentDistances.length - 1] : 0;
+            document.getElementById('segmentDistance').innerText = (lastSegment / 1000).toFixed(2);
         }
 
         // ノースアップ機能
@@ -295,7 +298,9 @@
         }
 
         map.on('click', e => addPin(e.latlng));
+
+        // 初期表示を更新
+        updateDisplay();
     </script>
 </body>
 </html>
-
