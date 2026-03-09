@@ -102,21 +102,6 @@
     <div id="map"></div>
 
     <script>
-        // Leaflet.RotatedMarker プラグインの読み込み
-        // Leaflet自体に回転機能があるため、RotatedMarkerは不要ですが、もしマーカー自体を回転させたい場合は利用します。
-        // 現状はマップの回転なので不要ですが、将来的な拡張のためにコメントアウトして残しておきます。
-        // L.Marker.addInitHook(function () {
-        //     var iconOptions = this.options.icon && this.options.icon.options;
-        //     var rotation = iconOptions && iconOptions.rotation;
-        //     if (rotation) {
-        //         this.on('add', function () {
-        //             var img = this._icon;
-        //             img.style.transform += ' rotate(' + rotation + 'deg)';
-        //         });
-        //     }
-        // });
-
-
         const map = L.map('map').setView([34.8833, 135.7000], 15); // 初期表示は京都駅付近
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
@@ -152,7 +137,8 @@
                 },
                 (error) => {
                     console.error("現在位置の取得に失敗しました:", error);
-                    alert("現在位置の取得に失敗しました。位置情報サービスを有効にしてください。");
+                    // エラー時にアラートを出すが、マップの動作を妨げない
+                    // alert("現在位置の取得に失敗しました。位置情報サービスを有効にしてください。");
                 },
                 {
                     enableHighAccuracy: true, // 高精度な位置情報を要求
@@ -208,12 +194,10 @@
                 const lastPos = markers[markers.length - 1].getLatLng();
                 const dist = lastPos.distanceTo(latlng);
                 distances.push(dist);
-                updateDisplay();
-            } else {
-                updateDisplay();
             }
             markers.push(marker);
             polyline.addLatLng(latlng);
+            updateDisplay();
         }
 
         function popPin() {
@@ -243,6 +227,11 @@
         // ノースアップ機能
         function northUp() {
             map.setBearing(0); // 地図の回転を0度にリセット
+            if (headingUpEnabled) {
+                headingUpEnabled = false;
+                window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation);
+                alert("ヘディングアップを無効にしました。");
+            }
         }
 
         // ヘディングアップ機能
@@ -250,10 +239,13 @@
         function headingUp() {
             headingUpEnabled = !headingUpEnabled; // トグル
 
+            const headingButton = document.querySelector('.btn-row button:last-child'); // ヘディングアップボタン
+            
             if (headingUpEnabled) {
-                alert("ヘディングアップを有効にしました。デバイスを動かして試してください。");
+                headingButton.style.backgroundColor = '#28a745'; // 有効時の色
+                headingButton.innerText = 'ヘディングアップ中';
+
                 // デバイスの向きイベントをリッスン
-                window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
                 // 許可リクエスト（iOS 13+ の場合）
                 if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                     DeviceOrientationEvent.requestPermission()
@@ -263,6 +255,8 @@
                             } else {
                                 alert('デバイスの向き情報へのアクセスが拒否されました。設定を確認してください。');
                                 headingUpEnabled = false; // 無効化
+                                headingButton.style.backgroundColor = '#007bff'; // 無効時の色に戻す
+                                headingButton.innerText = 'ヘディングアップ';
                             }
                         })
                         .catch(console.error);
@@ -271,7 +265,8 @@
                     window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
                 }
             } else {
-                alert("ヘディングアップを無効にしました。");
+                headingButton.style.backgroundColor = '#007bff'; // 無効時の色
+                headingButton.innerText = 'ヘディングアップ';
                 window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation);
                 northUp(); // ヘディングアップ解除時にノースアップに戻す
             }
@@ -279,15 +274,15 @@
 
         function handleDeviceOrientation(event) {
             if (event.alpha !== null) {
-                // `alpha`は真北からの時計回りの角度
-                // LeafletのsetBearingは反時計回りの角度を期待するので、変換が必要
-                // ただし、環境によっては `webkitCompassHeading` の方が正確な場合もある
-                let heading = 360 - event.alpha; // 真北からの反時計回りの角度
-
+                let heading;
                 // より正確なコンパスヘディングがある場合（iOSなど）
                 if (event.webkitCompassHeading !== undefined) {
-                    heading = event.webkitCompassHeading; // こちらは真北からの時計回り
+                    heading = event.webkitCompassHeading; // 真北からの時計回り
                     heading = 360 - heading; // Leaflet向けに反時計回りに変換
+                } else {
+                    // `alpha`は真北からの時計回りの角度
+                    // LeafletのsetBearingは反時計回りの角度を期待するので、変換が必要
+                    heading = 360 - event.alpha; // 真北からの反時計回りの角度
                 }
                 
                 map.setBearing(heading);
@@ -298,4 +293,3 @@
     </script>
 </body>
 </html>
-
