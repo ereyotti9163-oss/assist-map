@@ -57,8 +57,6 @@
         }
         /* 画像に合わせたボタンの色 */
         .btn-clear { background: #6c757d; } /* グレーに変更 */ 
-        /* 「すべて消す」ボタンは画像にないので一旦削除 */
-        /* .btn-clear.all-clear { background: #dc3545; } */
 
         .btn-row button {
             /* 画像のボタンの幅に近づけるため、flex-growは一部のみに適用 */
@@ -78,15 +76,15 @@
             flex-grow: 1.5; /* 他より少し幅を広く */
         }
 
-
-        /* 距離表示パネルは画像にないので削除 */
-        /* .info-panel { 
+        /* 距離表示パネルのスタイルを画像に合わせて追加 */
+        .info-panel { 
             background: #f0f4f8; 
             padding: 4px 6px; 
             border-radius: 6px; 
             border: 1px solid #d1d9e6;
             width: 100%; 
             text-align: center; 
+            margin-top: 8px; /* 他の要素との間隔 */
         }
         .distance-display {
             display: flex;
@@ -95,7 +93,7 @@
         }
         .dist-label { font-size: 9px; color: #666; display: block; text-align: center; }
         .dist-value { font-size: 14px; font-weight: bold; color: #333; text-align: center; }
-        .total-dist { color: #d32f2f; } */
+        .total-dist { color: #d32f2f; }
         
         /* 現在地マーカーのスタイル */
         .current-location-icon {
@@ -144,6 +142,12 @@
                 flex-grow: 0; /* ボタンの幅は内容に合わせる */
                 min-width: unset;
             }
+            /* 距離表示パネルはデスクトップでも幅いっぱい */
+            .info-panel {
+                width: auto; /* 自動調整 */
+                margin-left: 10px; /* ボタンとの間隔 */
+                flex-shrink: 0; /* 縮小させない */
+            }
         }
     </style>
 </head>
@@ -158,7 +162,14 @@
             <button onclick="northUp()">ノースアップ</button>
             <button onclick="headingUp()">ヘディングアップ</button>
         </div>
-        <!-- 距離表示パネルは画像にないので削除 -->
+        <!-- 距離表示パネルをここに追加 -->
+        <div class="info-panel">
+            <div class="distance-display">
+                <span class="dist-label">合計距離: </span>
+                <span class="dist-value total-dist" id="totalDistance">0.00</span>
+                <span class="dist-label"> km</span>
+            </div>
+        </div>
     </div>
 
     <div id="map"></div>
@@ -174,7 +185,7 @@
 
         let markers = [];
         let polyline = L.polyline([], {color: '#d32f2f', weight: 5, opacity: 0.8}).addTo(map);
-        let distances = [];
+        let distances = []; // 各区間の距離を格納する配列
         let currentLocationMarker = null; // 現在地マーカー
 
         // 現在地取得と追跡
@@ -247,14 +258,12 @@
             const marker = L.marker(latlng).addTo(map);
             if (markers.length > 0) {
                 const lastPos = markers[markers.length - 1].getLatLng();
-                const dist = lastPos.distanceTo(latlng);
+                const dist = lastPos.distanceTo(latlng); // 距離を計算
                 distances.push(dist);
-                // updateDisplay(); // 距離表示パネルがないので不要
-            } else {
-                // updateDisplay(); // 距離表示パネルがないので不要
             }
             markers.push(marker);
             polyline.addLatLng(latlng);
+            updateDisplay(); // 距離表示を更新
         }
 
         function popPin() {
@@ -270,31 +279,17 @@
             }
             
             if (distances.length > 0) {
-                distances.pop();
+                distances.pop(); // 対応する距離も削除
             }
             
-            // updateDisplay(); // 距離表示パネルがないので不要
+            updateDisplay(); // 距離表示を更新
         }
 
-        // 「すべて消す」ボタンは画像にないので機能削除
-        /*
-        function clearAllPins() {
-            markers.forEach(marker => map.removeLayer(marker));
-            markers = [];
-            polyline.setLatLngs([]);
-            distances = [];
-            updateDisplay();
-            alert("すべてのピンを消去しました。");
-        }
-        */
-
-        // 距離表示パネルがないので機能削除
-        /*
+        // 距離表示を更新する関数
         function updateDisplay() {
-            const total = distances.reduce((a, b) => a + b, 0);
-            document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2);
+            const total = distances.reduce((a, b) => a + b, 0); // 全ての距離を合計
+            document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2); // kmに変換して表示
         }
-        */
 
         function northUp() {
             map.setBearing(0);
@@ -306,7 +301,6 @@
 
             if (headingUpEnabled) {
                 alert("ヘディングアップを有効にしました。デバイスを動かして試してください。");
-                window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
                 if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                     DeviceOrientationEvent.requestPermission()
                         .then(permissionState => {
@@ -342,7 +336,9 @@
         }
 
         map.on('click', e => addPin(e.latlng));
+
+        // 初期表示時に距離表示を更新
+        updateDisplay();
     </script>
 </body>
 </html>
-
