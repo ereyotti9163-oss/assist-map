@@ -8,136 +8,163 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; cursor: crosshair; }
+        body { margin: 0; padding: 0; font-family: sans-serif; cursor: crosshair; overflow: hidden; }
         #map { width: 100vw; height: 100vh; z-index: 1; }
         .leaflet-container { cursor: crosshair !important; }
         
+        /* コントロールパネルを上部に配置し、スリム化 */
         .control-panel {
-            position: absolute; top: 10px; left: 10px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95); padding: 8px;
+            position: absolute; top: 8px; left: 8px; right: 8px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 5px 8px; /* パディングを削減 */
             border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            max-width: 90%;
-            width: 280px; /* 少し幅を広げて調整 */
-            font-size: 14px;
-            box-sizing: border-box; /* paddingを含めて幅を計算 */
-        }
-
-        @media (max-width: 600px) {
-            .control-panel {
-                width: calc(100% - 20px);
-                left: 10px;
-                right: 10px;
-                top: 8px;
-                padding: 6px;
-                font-size: 13px;
-            }
-            .input-group, .btn-row {
-                flex-direction: row;
-                margin-bottom: 5px;
-                gap: 5px; /* ボタン間のギャップを調整 */
-            }
-            input, button {
-                padding: 6px;
-                font-size: 13px;
-            }
-            .info-panel {
-                padding: 5px;
-            }
-            /* QRコードと合計距離の表示をスマホで調整 */
-            .bottom-info-row {
-                flex-direction: row; /* 横並び */
-                justify-content: space-around;
-                align-items: center;
-                gap: 5px;
-            }
-            #qrcode-container {
-                flex: 1;
-                min-width: 80px; /* QRコードエリアの最小幅 */
-                padding: 0;
-            }
-            #qrcode img {
-                width: 100% !important; /* 親要素に合わせて調整 */
-                height: auto !important;
-                max-width: 80px; /* スマホでの最大サイズを制限 */
-                max-height: 80px;
-            }
-            .distance-item {
-                flex: 1;
-                min-width: 0;
-            }
-            .dist-label {
-                font-size: 10px; /* スマホでより小さく */
-                margin-bottom: 1px;
-            }
-            .dist-value {
-                font-size: 16px; /* スマホで認識しやすいサイズを維持 */
-            }
-            hr {
-                margin: 5px 0 !important;
-            }
-        }
-
-        .input-group { display: flex; gap: 5px; margin-bottom: 6px; }
-        input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        button { padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; }
-        .btn-row { display: flex; gap: 5px; margin-bottom: 6px; }
-        .btn-row button { flex: 1; } /* ボタンが均等な幅になるように */
-        .btn-clear { background: #dc3545; }
-        .info-panel { background: #f0f4f8; padding: 6px; border-radius: 6px; border: 1px solid #d1d9e6; }
-        
-        /* QRコードと合計距離の表示エリア */
-        .bottom-info-row {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* 影も控えめに */
             display: flex;
-            justify-content: space-around; 
-            align-items: center;
-            flex-wrap: nowrap;
-            gap: 10px; 
-            margin-top: 5px; /* 上のボタンとの間に少し余白 */
-        }
-        #qrcode-container {
-            flex: 1;
-            display: flex; /* QRコード画像を中央に寄せるため */
-            justify-content: center;
-            align-items: center;
-            padding: 5px; /* 枠内の余白 */
-            border: 1px solid #d1d9e6;
-            border-radius: 6px;
-            background: #ffffff;
-            min-height: 80px; /* QRコードエリアの最小高さを設定 */
-        }
-        #qrcode {
-            /* QRコードJSによって生成されるキャンバス/画像を格納 */
-            text-align: center;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        #qrcode img {
-            max-width: 90px; /* QRコードの最大サイズ */
-            height: auto;
-            display: block; /* 余分な下余白をなくす */
-        }
-
-        .distance-item {
-            flex: 1;
-            text-align: center;
-            flex-shrink: 0; 
-            min-width: fit-content; 
-            padding: 5px;
-            border: 1px solid #d1d9e6;
-            border-radius: 6px;
-            background: #ffffff;
-            min-height: 80px; /* QRコードエリアと高さを合わせる */
-            display: flex; /* 中央寄せのため */
             flex-direction: column;
+            gap: 5px; /* 要素間の隙間を削減 */
+        }
+
+        .input-group { display: flex; gap: 5px; }
+        .input-group input { 
+            flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; 
+            font-size: 13px; /* フォントサイズを小さく */
+            height: 30px; /* 高さもスリムに */
+            box-sizing: border-box;
+        }
+        .input-group button { 
+            padding: 0 10px; /* 左右パディングを調整 */
+            background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; 
+            font-weight: bold; font-size: 13px; /* フォントサイズを小さく */
+            height: 30px; /* 高さもスリムに */
+            white-space: nowrap; /* ボタンテキストの折り返し防止 */
+        }
+        
+        .btn-row { display: flex; gap: 5px; }
+        .btn-row button { 
+            flex: 1; padding: 6px 8px; /* パディングを削減 */
+            background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; 
+            font-weight: bold; font-size: 13px; /* フォントサイズを小さく */
+            height: 30px; /* 高さもスリムに */
+            box-sizing: border-box;
+        }
+        .btn-clear { background: #dc3545; }
+
+        /* フローティングQRボタン */
+        #qr-float-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 50px; /* 小さな正円 */
+            height: 50px;
+            border-radius: 50%;
+            background-color: #007bff; /* シンプルな青 */
+            color: white;
+            display: flex;
             justify-content: center;
             align-items: center;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            border: none;
+            -webkit-tap-highlight-color: transparent; /* タップ時のハイライトを無効化 */
         }
-        .dist-label { font-size: 11px; color: #666; display: block; margin-bottom: 1px;}
-        .dist-value { font-size: 20px; font-weight: bold; color: #333; }
-        .total-dist { color: #d32f2f; }
-        hr { border: 0; border-top: 1px solid #d1d9e6; margin: 6px 0; }
+
+        /* QRコードポップアップ（モーダル） */
+        .qr-popup-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            visibility: hidden; /* デフォルトで非表示 */
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease;
+        }
+        .qr-popup-overlay.visible {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .qr-popup-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            text-align: center;
+            max-width: 90%;
+            max-height: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        #popup-qrcode {
+            padding: 5px; /* QRコードの白い余白を確保 */
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        #popup-qrcode img {
+            width: 150px !important; /* ポップアップ内のQRコードサイズ */
+            height: 150px !important;
+            display: block;
+        }
+        .popup-distance-info {
+            font-size: 16px;
+            color: #333;
+            font-weight: bold;
+            text-align: center;
+        }
+        .popup-distance-info .total-dist {
+            color: #d32f2f;
+            font-size: 24px;
+        }
+
+        /* 現在地マーカーのスタイル */
+        .current-location-icon {
+            background-color: #007bff; /* 青色の点 */
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            border: 2px solid white; /* 白い縁取り */
+            box-shadow: 0 0 5px rgba(0,0,0,0.5); /* 影 */
+        }
+
+        /* メディアクエリは必要に応じて調整 */
+        @media (max-width: 400px) {
+            .control-panel {
+                padding: 4px 6px;
+                gap: 4px;
+            }
+            .input-group input, .input-group button, .btn-row button {
+                height: 28px;
+                font-size: 12px;
+                padding: 4px 8px;
+            }
+            #qr-float-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 14px;
+                bottom: 15px;
+                right: 15px;
+            }
+            .qr-popup-content {
+                padding: 15px;
+            }
+            #popup-qrcode img {
+                width: 130px !important;
+                height: 130px !important;
+            }
+            .popup-distance-info {
+                font-size: 14px;
+            }
+            .popup-distance-info .total-dist {
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -151,18 +178,22 @@
             <button onclick="northUp()">ノースアップ</button>
             <button onclick="headingUp()">ヘディングアップ</button>
         </div>
-        
-        <div class="bottom-info-row">
-            <div id="qrcode-container">
-                <div id="qrcode"></div>
-            </div>
-            <div class="distance-item">
-                <span class="dist-label">合計距離</span>
-                <div class="dist-value total-dist"><span id="totalDistance">0.00</span> km</div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- フローティングQRボタン -->
+    <button id="qr-float-btn" onclick="toggleQrPopup()">QR</button>
+
+    <!-- QRコードポップアップ -->
+    <div class="qr-popup-overlay" onclick="toggleQrPopup(event)">
+        <div class="qr-popup-content" onclick="event.stopPropagation()">
+            <div id="popup-qrcode"></div>
+            <div class="popup-distance-info">
+                合計距離: <span class="total-dist"><span id="popupTotalDistance">0.00</span> km</span>
             </div>
         </div>
     </div>
-    <div id="map"></div>
 
     <script>
         const map = L.map('map').setView([34.8833, 135.7000], 15); // 初期表示は京都駅付近
@@ -189,18 +220,15 @@
                         currentLocationMarker = L.marker(currentLatLng, {
                             icon: L.divIcon({
                                 className: 'current-location-icon',
-                                html: '<div style="background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>',
+                                // htmlはCSSで定義しているので不要
                                 iconSize: [20, 20],
                                 iconAnchor: [10, 10]
                             })
                         }).addTo(map);
                     }
-                    // 必要に応じて地図を現在地に移動
-                    // map.panTo(currentLatLng);
                 },
                 (error) => {
                     console.error("現在位置の取得に失敗しました:", error);
-                    // alert("現在位置の取得に失敗しました。位置情報サービスを有効にしてください。"); // エラー表示は控えめに
                 },
                 {
                     enableHighAccuracy: true, 
@@ -208,10 +236,7 @@
                     timeout: 5000             
                 }
             );
-        } else {
-            // alert("お使いのブラウザはGeolocationをサポートしていません。"); // エラー表示は控えめに
         }
-
 
         async function searchAddress() {
             const address = document.getElementById('addressInput').value;
@@ -257,7 +282,6 @@
             markers.push(marker);
             polyline.addLatLng(latlng);
             updateDisplay();
-            generateQrCode();
         }
 
         function popPin() {
@@ -283,17 +307,18 @@
             }
             
             updateDisplay();
-            generateQrCode();
         }
 
         function updateDisplay() {
-            document.getElementById('totalDistance').innerText = (totalDistance / 1000).toFixed(2);
+            // ポップアップ内の合計距離も更新
+            document.getElementById('popupTotalDistance').innerText = (totalDistance / 1000).toFixed(2);
+            generateQrCode(); // ピンの増減に合わせてQRコードデータを更新
         }
 
-        // QRコード生成関数
-        let qrcode = new QRCode(document.getElementById("qrcode"), {
-            width : 80,
-            height : 80,
+        // QRコード生成関数 (ポップアップ用)
+        let qrcodePopup = new QRCode(document.getElementById("popup-qrcode"), {
+            width : 150,
+            height : 150,
             colorDark : "#000000",
             colorLight : "#ffffff",
             correctLevel : QRCode.CorrectLevel.H
@@ -310,8 +335,22 @@
             } else {
                 qrData = "ピンがありません";
             }
-            qrcode.clear(); // 既存のQRコードをクリア
-            qrcode.makeCode(qrData); // 新しいデータを設定
+            qrcodePopup.clear(); 
+            qrcodePopup.makeCode(qrData);
+        }
+
+        // QRコードポップアップ表示/非表示の切り替え
+        const qrPopupOverlay = document.querySelector('.qr-popup-overlay');
+        function toggleQrPopup(event) {
+            // ポップアップ内部のクリックで閉じないようにする
+            if (event && event.target.closest('.qr-popup-content')) {
+                return;
+            }
+            qrPopupOverlay.classList.toggle('visible');
+            if (qrPopupOverlay.classList.contains('visible')) {
+                // ポップアップが表示されるたびに最新の情報を元にQRコードを再生成
+                updateDisplay(); 
+            }
         }
 
         // ノースアップ機能
@@ -360,9 +399,8 @@
 
         map.on('click', e => addPin(e.latlng));
 
-        // 初期表示を更新
+        // 初期表示を更新 (ページロード時にQRコードを一度生成しておく)
         updateDisplay();
-        generateQrCode(); // 初期状態でQRコードを生成
     </script>
 </body>
 </html>
