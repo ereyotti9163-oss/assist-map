@@ -6,6 +6,8 @@
     <title>アシストマップ</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- QRコード生成ライブラリのCDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { margin: 0; padding: 0; font-family: sans-serif; cursor: crosshair; }
         #map { width: 100vw; height: 100vh; z-index: 1; }
@@ -19,6 +21,77 @@
             max-width: 90%;
             width: 250px;
             font-size: 14px;
+        }
+
+        .share-button {
+            position: absolute; top: 10px; right: 10px; z-index: 1000;
+            background: #007bff; color: white; border: none;
+            padding: 8px 12px; border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* モーダル背景 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* モーダルウィンドウ */
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 300px;
+            width: 90%;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        #qrcode {
+            margin: 0 auto 15px auto;
+            padding: 5px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            display: inline-block; /* QRコードが中央に表示されるように */
+        }
+
+        .url-text {
+            word-break: break-all; /* 長いURLがはみ出さないように */
+            color: #555;
+            font-size: 14px;
+            margin-top: 10px;
         }
 
         @media (max-width: 600px) {
@@ -55,6 +128,20 @@
             }
             hr {
                 margin: 5px 0 !important;
+            }
+            .share-button {
+                padding: 6px 10px;
+                font-size: 13px;
+                top: 8px;
+            }
+            .modal-content {
+                padding: 15px;
+            }
+            .modal-content h3 {
+                font-size: 16px;
+            }
+            .url-text {
+                font-size: 13px;
             }
         }
 
@@ -99,24 +186,22 @@
             </div>
         </div>
     </div>
+
+    <!-- 共有ボタンの追加 -->
+    <button class="share-button" onclick="openShareModal()">共有</button>
+
+    <!-- 共有モーダルの追加 -->
+    <div class="modal-overlay" id="shareModalOverlay">
+        <div class="modal-content">
+            <h3>このアプリを共有する</h3>
+            <div id="qrcode"></div>
+            <p class="url-text">https://yotti.github.io/assist-map/</p>
+        </div>
+    </div>
+
     <div id="map"></div>
 
     <script>
-        // Leaflet.RotatedMarker プラグインの読み込み
-        // Leaflet自体に回転機能があるため、RotatedMarkerは不要ですが、もしマーカー自体を回転させたい場合は利用します。
-        // 現状はマップの回転なので不要ですが、将来的な拡張のためにコメントアウトして残しておきます。
-        // L.Marker.addInitHook(function () {
-        //     var iconOptions = this.options.icon && this.options.icon.options;
-        //     var rotation = iconOptions && iconOptions.rotation;
-        //     if (rotation) {
-        //         this.on('add', function () {
-        //             var img = this._icon;
-        //             img.style.transform += ' rotate(' + rotation + 'deg)';
-        //         });
-        //     }
-        // });
-
-
         const map = L.map('map').setView([34.8833, 135.7000], 15); // 初期表示は京都駅付近
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
@@ -295,6 +380,37 @@
         }
 
         map.on('click', e => addPin(e.latlng));
+
+        // 共有モーダル関連のJavaScript
+        const shareModalOverlay = document.getElementById('shareModalOverlay');
+        const shareAppUrl = "https://yotti.github.io/assist-map/";
+        let qrcodeInstance = null; // QRコードインスタンスを保持
+
+        function openShareModal() {
+            if (!qrcodeInstance) {
+                qrcodeInstance = new QRCode(document.getElementById("qrcode"), {
+                    text: shareAppUrl,
+                    width: 180,
+                    height: 180,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+            }
+            shareModalOverlay.classList.add('active');
+        }
+
+        function closeShareModal() {
+            shareModalOverlay.classList.remove('active');
+        }
+
+        // モーダル外クリックで閉じる
+        shareModalOverlay.addEventListener('click', (event) => {
+            if (event.target === shareModalOverlay) {
+                closeShareModal();
+            }
+        });
+
     </script>
 </body>
 </html>
