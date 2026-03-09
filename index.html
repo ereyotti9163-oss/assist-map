@@ -49,6 +49,28 @@
         }
         .btn-clear { background: #dc3545; }
 
+        /* 新しく追加する合計距離表示枠 */
+        .total-distance-display {
+            width: 100%; /* 親要素の幅いっぱいに */
+            padding: 6px 8px; /* 他のボタンと同じパディング */
+            background: white; /* 白背景 */
+            color: #d32f2f; /* 赤い文字色 */
+            border: 1px solid #ccc; /* 枠線 */
+            border-radius: 4px; /* 角丸 */
+            font-weight: bold;
+            font-size: 13px;
+            height: 30px; /* 他の入力欄・ボタンと同じ高さ */
+            box-sizing: border-box;
+            display: flex; /* 中央揃えのため */
+            align-items: center; /* 垂直方向中央 */
+            justify-content: center; /* 水平方向中央 */
+        }
+        .total-distance-display .distance-value {
+            font-size: 15px; /* 少し大きめに */
+            margin-left: 4px;
+        }
+
+
         /* フローティングQRボタン */
         #qr-float-btn {
             position: fixed;
@@ -139,10 +161,13 @@
                 padding: 4px 6px;
                 gap: 4px;
             }
-            .input-group input, .input-group button, .btn-row button {
+            .input-group input, .input-group button, .btn-row button, .total-distance-display {
                 height: 28px;
                 font-size: 12px;
                 padding: 4px 8px;
+            }
+            .total-distance-display .distance-value {
+                font-size: 14px;
             }
             #qr-float-btn {
                 width: 45px;
@@ -177,6 +202,10 @@
             <button class="btn-clear" onclick="popPin()">ピン1つ消す</button>
             <button onclick="northUp()">ノースアップ</button>
             <button onclick="headingUp()">ヘディングアップ</button>
+        </div>
+        <!-- 新しく追加する合計距離表示枠 -->
+        <div class="total-distance-display">
+            合計距離: <span id="mainTotalDistance" class="distance-value">0.00</span> km
         </div>
     </div>
 
@@ -310,8 +339,10 @@
         }
 
         function updateDisplay() {
-            // ポップアップ内の合計距離も更新
-            document.getElementById('popupTotalDistance').innerText = (totalDistance / 1000).toFixed(2);
+            // メインパネルとポップアップ内の合計距離を更新
+            const formattedDistance = (totalDistance / 1000).toFixed(2);
+            document.getElementById('mainTotalDistance').innerText = formattedDistance;
+            document.getElementById('popupTotalDistance').innerText = formattedDistance;
             generateQrCode(); // ピンの増減に合わせてQRコードデータを更新
         }
 
