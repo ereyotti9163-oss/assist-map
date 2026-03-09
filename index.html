@@ -134,16 +134,6 @@
             height: 150px !important;
             display: block;
         }
-        .popup-distance-info {
-            font-size: 16px;
-            color: #333;
-            font-weight: bold;
-            text-align: center;
-        }
-        .popup-distance-info .total-dist {
-            color: #d32f2f;
-            font-size: 24px;
-        }
 
         /* 現在地マーカーのスタイル */
         .current-location-icon {
@@ -183,12 +173,6 @@
                 width: 130px !important;
                 height: 130px !important;
             }
-            .popup-distance-info {
-                font-size: 14px;
-            }
-            .popup-distance-info .total-dist {
-                font-size: 20px;
-            }
         }
     </style>
 </head>
@@ -218,9 +202,7 @@
     <div class="qr-popup-overlay" onclick="toggleQrPopup(event)">
         <div class="qr-popup-content" onclick="event.stopPropagation()">
             <div id="popup-qrcode"></div>
-            <div class="popup-distance-info">
-                合計距離: <span class="total-dist"><span id="popupTotalDistance">0.00</span> km</span>
-            </div>
+            <!-- ポップアップから距離表示を削除 -->
         </div>
     </div>
 
@@ -339,10 +321,9 @@
         }
 
         function updateDisplay() {
-            // メインパネルとポップアップ内の合計距離を更新
+            // メインパネルの合計距離を更新
             const formattedDistance = (totalDistance / 1000).toFixed(2);
             document.getElementById('mainTotalDistance').innerText = formattedDistance;
-            document.getElementById('popupTotalDistance').innerText = formattedDistance;
             generateQrCode(); // ピンの増減に合わせてQRコードデータを更新
         }
 
@@ -362,7 +343,7 @@
                     const latlng = marker.getLatLng();
                     qrData += `地点${index + 1}: Lat ${latlng.lat.toFixed(6)}, Lng ${latlng.lng.toFixed(6)}\n`;
                 });
-                qrData += `合計距離: ${(totalDistance / 1000).toFixed(2)} km\n`;
+                qrData += `合計距離: ${(totalDistance / 1000).toFixed(2)} km\n`; // QRコードには距離情報を含める
             } else {
                 qrData = "ピンがありません";
             }
@@ -380,7 +361,7 @@
             qrPopupOverlay.classList.toggle('visible');
             if (qrPopupOverlay.classList.contains('visible')) {
                 // ポップアップが表示されるたびに最新の情報を元にQRコードを再生成
-                updateDisplay(); 
+                generateQrCode(); 
             }
         }
 
