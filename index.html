@@ -22,32 +22,10 @@
             font-size: 14px;
         }
 
-        /* 新しいボタンコンテナ */
-        .right-top-buttons {
-            position: absolute; top: 10px; right: 10px; z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 8px; /* ボタン間のスペース */
-        }
-        
-        /* 共有ボタン */
-        .btn-share {
-            padding: 8px 12px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 14px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            width: 80px; /* 固定幅 */
-            text-align: center;
-        }
-
-        /* ピン消すボタンの小型化 */
+        /* 既存のピン消すボタン */
         .btn-pop-pin {
-            padding: 8px 12px; /* 共有ボタンと合わせる */
+            position: absolute; top: 10px; right: 10px; z-index: 1000; /* 右上に配置 */
+            padding: 8px 12px;
             background: #dc3545;
             color: white;
             border: none;
@@ -59,7 +37,6 @@
             width: 80px; /* 固定幅 */
             text-align: center;
         }
-
 
         @media (max-width: 600px) {
             .control-panel {
@@ -78,9 +55,7 @@
                 padding: 6px;
                 font-size: 13px;
             }
-            .info-panel {
-                padding: 5px;
-            }
+            /* .info-panel は新しいスタイルで調整 */
             .distance-display {
                 flex-direction: column;
                 align-items: flex-start;
@@ -97,13 +72,10 @@
                 margin: 5px 0 !important;
             }
 
-            /* スマホでのボタン調整 */
-            .right-top-buttons {
+            /* スマホでのピン消すボタン調整 */
+            .btn-pop-pin {
                 top: 8px; /* control-panelと合わせる */
                 right: 10px;
-                gap: 6px;
-            }
-            .btn-share, .btn-pop-pin {
                 width: 65px; /* スマホでさらに小さく */
                 padding: 6px 8px;
                 font-size: 12px;
@@ -114,21 +86,79 @@
         input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
         button { padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; }
         .btn-row { display: flex; gap: 5px; margin-bottom: 6px; }
-        /* 既存のbtn-clearは新しいbtn-pop-pinに置き換わるので不要だが、もし残すなら修正 */
-        /* .btn-clear { flex: 1; background: #dc3545; } */ 
-        .info-panel { background: #f0f4f8; padding: 6px; border-radius: 6px; border: 1px solid #d1d9e6; }
+        
+        /* 修正: info-panelと共有ボタンを横並びにするためのコンテナ */
+        .bottom-control-row {
+            display: flex;
+            gap: 5px; /* アイテム間のスペース */
+            margin-top: 6px; /* 上の要素との間隔 */
+        }
+
+        /* 修正: info-panelの高さ調整とflexアイテムとしての設定 */
+        .info-panel {
+            background: #f0f4f8;
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid #d1d9e6;
+            flex: 1; /* 残りのスペースを埋める */
+            display: flex; /* 内部要素を中央寄せするため */
+            align-items: center; /* 垂直方向中央寄せ */
+            justify-content: center; /* 水平方向中央寄せ */
+            height: 40px; /* 高さを半分程度に縮める */
+            box-sizing: border-box; /* paddingとborderを高さに含める */
+            min-width: 0; /* flexアイテムの幅が内容によって広がりすぎるのを防ぐ */
+        }
+        
         .distance-display {
             display: flex;
             justify-content: center; /* 中央寄せに変更 */
             align-items: center;
+            width: 100%; /* info-panel内で幅をいっぱいに使う */
         }
         .distance-item {
             text-align: center;
         }
-        .dist-label { font-size: 11px; color: #666; display: block; margin-bottom: 2px;}
+        .dist-label { font-size: 11px; color: #666; display: block; margin-bottom: 0; /* 高さを縮めたのでマージンをなくす */ }
         .dist-value { font-size: 16px; font-weight: bold; color: #333; }
         .total-dist { color: #d32f2f; }
         hr { border: 0; border-top: 1px solid #d1d9e6; margin: 6px 0; }
+
+        /* 修正: 共有ボタンのスタイル調整 */
+        .btn-share {
+            padding: 8px 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            /* width: 80px; */ /* 他のボタンと合わせるために固定幅を削除または調整 */
+            text-align: center;
+            height: 40px; /* info-panelと高さを合わせる */
+            box-sizing: border-box; /* paddingとborderを高さに含める */
+            white-space: nowrap; /* テキストが折り返さないように */
+            flex-shrink: 0; /* 縮まないように */
+        }
+        @media (max-width: 600px) {
+            .btn-share {
+                padding: 6px 8px;
+                font-size: 12px;
+                height: 36px; /* スマホでの高さ調整 (info-panelに合わせる) */
+            }
+            .info-panel {
+                height: 36px; /* スマホでの高さ調整 */
+                padding: 4px;
+            }
+            .dist-value {
+                font-size: 13px; /* スマホで文字がはみ出さないように */
+            }
+            .dist-label {
+                font-size: 9px;
+            }
+        }
+
 
         /* モーダル関連 */
         .modal {
@@ -209,21 +239,24 @@
             <button onclick="northUp()">ノースアップ</button>
             <button onclick="headingUp()">ヘディングアップ</button>
         </div>
-        <div class="info-panel">
-            <div class="distance-display">
-                <div class="distance-item">
-                    <span class="dist-label">全行程の合計距離</span>
-                    <div class="dist-value total-dist"><span id="totalDistance">0.00</span> km</div>
+        <!-- 修正: info-panelと共有ボタンをまとめる新しいコンテナ -->
+        <div class="bottom-control-row">
+            <div class="info-panel">
+                <div class="distance-display">
+                    <div class="distance-item">
+                        <span class="dist-label">全行程の合計距離</span>
+                        <div class="dist-value total-dist"><span id="totalDistance">0.00</span> km</div>
+                    </div>
                 </div>
             </div>
+            <!-- 修正: 共有ボタンをここに移動 -->
+            <button class="btn-share" onclick="openShareModal()">共有</button>
         </div>
     </div>
 
-    <!-- 新しいボタンコンテナ -->
-    <div class="right-top-buttons">
-        <button class="btn-share" onclick="openShareModal()">共有</button>
-        <button class="btn-pop-pin" onclick="popPin()">ピン消す</button>
-    </div>
+    <!-- 修正: 元々あった右上のボタンコンテナは削除し、ピン消すボタンだけ残す -->
+    <button class="btn-pop-pin" onclick="popPin()">ピン消す</button>
+    
 
     <div id="map"></div>
 
