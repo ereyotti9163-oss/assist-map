@@ -13,7 +13,7 @@
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden; /* 地図がはみ出さないように */
+            overflow: hidden;
         }
 
         #map {
@@ -21,45 +21,46 @@
             top: 0;
             bottom: 0;
             width: 100%;
-            height: 100%;
+            height: 100%; /* 地図が画面全体を覆うように */
             z-index: 0;
         }
 
         .control-panel {
             position: absolute;
-            top: 10px; /* 上部に配置 */
-            left: 50%;
-            transform: translateX(-50%); /* 中央寄せ */
+            top: 10px;
+            left: 10px; /* 左端に配置 */
+            right: 10px; /* 右端に配置 */
             background-color: rgba(255, 255, 255, 0.9);
-            padding: 5px 10px;
+            padding: 8px 12px; /* 上下のパディングを増やして高さを確保 */
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            display: flex; /* 横並び */
-            align-items: center; /* 垂直中央寄せ */
-            gap: 8px; /* 要素間のスペース */
-            z-index: 1000; /* 地図より前面に */
-            max-width: 95%; /* 広い画面でも横長になりすぎないように */
-            box-sizing: border-box; /* paddingを含めて幅を計算 */
+            display: flex;
+            flex-wrap: wrap; /* 要素が収まらない場合に折り返す */
+            align-items: center;
+            gap: 8px; /* 要素間のスペースを調整 */
+            z-index: 1000;
+            box-sizing: border-box;
+            max-width: none; /* 幅の制限を解除 */
         }
 
         .control-panel input[type="text"] {
-            flex-grow: 1; /* 検索窓を広げる */
+            flex-grow: 1;
             padding: 6px 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
             font-size: 0.9em;
-            min-width: 150px; /* 最小幅を設定 */
+            min-width: 150px;
         }
 
         .control-panel button {
-            padding: 6px 12px;
+            padding: 6px 10px; /* ボタンのパディングを調整 */
             background-color: #007bff;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 0.9em;
-            white-space: nowrap; /* ボタン内のテキストを折り返さない */
+            font-size: 0.85em; /* フォントサイズを小さく */
+            white-space: nowrap;
             transition: background-color 0.2s ease;
         }
 
@@ -72,7 +73,7 @@
             padding: 6px 10px;
             border-radius: 5px;
             font-weight: bold;
-            font-size: 0.9em;
+            font-size: 0.85em; /* フォントサイズを小さく */
             color: #333;
             white-space: nowrap;
         }
@@ -82,6 +83,26 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        /* スマートフォン向けUI調整 */
+        @media (max-width: 600px) {
+            .control-panel {
+                top: 5px;
+                left: 5px;
+                right: 5px;
+                padding: 6px 8px;
+            }
+
+            .control-panel input[type="text"] {
+                min-width: unset;
+            }
+
+            .control-panel button,
+            .control-panel .distance-display {
+                font-size: 0.8em;
+                padding: 5px 8px;
+            }
         }
     </style>
 </head>
