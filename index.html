@@ -1,193 +1,294 @@
-<script>
-    const map = L.map('map').setView([34.8833, 135.7000], 15); // 初期表示は京都駅付近
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アシストマップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5aWS0MNzAtE=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/4K6pQWALgmERMyADGKcM=" crossorigin=""></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; /* 地図がはみ出さないように */
+        }
 
-    let markers = [];
-    let polyline = L.polyline([], {color: '#d32f2f', weight: 5, opacity: 0.8}).addTo(map);
-    let distances = [];
-    let currentLocationMarker = null; // 現在地マーカー
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
 
-    // 現在地取得と追跡
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(
-            (position) => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                const currentLatLng = L.latLng(lat, lng);
+        .control-panel {
+            position: absolute;
+            top: 10px; /* 上部に配置 */
+            left: 50%;
+            transform: translateX(-50%); /* 中央寄せ */
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 5px 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex; /* 横並び */
+            align-items: center; /* 垂直中央寄せ */
+            gap: 8px; /* 要素間のスペース */
+            z-index: 1000; /* 地図より前面に */
+            max-width: 95%; /* 広い画面でも横長になりすぎないように */
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
+        }
 
-                if (currentLocationMarker) {
-                    currentLocationMarker.setLatLng(currentLatLng);
-                } else {
-                    currentLocationMarker = L.marker(currentLatLng, {
-                        icon: L.divIcon({
-                            className: 'current-location-icon',
-                            html: '<div style="background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>',
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        })
-                    }).addTo(map);
+        .control-panel input[type="text"] {
+            flex-grow: 1; /* 検索窓を広げる */
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 0.9em;
+            min-width: 150px; /* 最小幅を設定 */
+        }
+
+        .control-panel button {
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            white-space: nowrap; /* ボタン内のテキストを折り返さない */
+            transition: background-color 0.2s ease;
+        }
+
+        .control-panel button:hover {
+            background-color: #0056b3;
+        }
+
+        .control-panel .distance-display {
+            background-color: #f8f9fa;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        /* 現在地マーカーのスタイル */
+        .current-location-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div class="control-panel">
+        <input type="text" id="addressInput" placeholder="住所、施設名、緯度経度で検索">
+        <button onclick="searchAddress()">検索</button>
+        <button onclick="popPin()">ピン1つ消す</button>
+        <button onclick="northUp()">ノースアップ</button>
+        <button onclick="headingUp()">ヘディングアップ</button>
+        <div class="distance-display">合計距離: <span id="totalDistance">0.00</span>km</div>
+    </div>
+
+    <script>
+        const map = L.map('map').setView([34.8833, 135.7000], 15); // 初期表示は京都駅付近
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        let markers = [];
+        let polyline = L.polyline([], {color: '#d32f2f', weight: 5, opacity: 0.8}).addTo(map);
+        let distances = [];
+        let currentLocationMarker = null; // 現在地マーカー
+
+        // 現在地取得と追跡
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const currentLatLng = L.latLng(lat, lng);
+
+                    if (currentLocationMarker) {
+                        currentLocationMarker.setLatLng(currentLatLng);
+                    } else {
+                        currentLocationMarker = L.marker(currentLatLng, {
+                            icon: L.divIcon({
+                                className: 'current-location-icon',
+                                html: '<div style="background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>',
+                                iconSize: [20, 20],
+                                iconAnchor: [10, 10]
+                            })
+                        }).addTo(map);
+                    }
+                    // 必要に応じて地図を現在地に移動 (自動パンはコメントアウト)
+                    // map.panTo(currentLatLng);
+                },
+                (error) => {
+                    console.error("現在位置の取得に失敗しました:", error);
+                    // エラー時にアラートを出すが、マップの動作を妨げない
+                    // alert("現在位置の取得に失敗しました。位置情報サービスを有効にしてください。");
+                },
+                {
+                    enableHighAccuracy: true, // 高精度な位置情報を要求
+                    maximumAge: 0,            // 位置情報のキャッシュを無効にする
+                    timeout: 5000             // 5秒以内に位置情報を取得できない場合はタイムアウト
                 }
-                // 必要に応じて地図を現在地に移動 (自動パンはコメントアウト)
-                // map.panTo(currentLatLng);
-            },
-            (error) => {
-                console.error("現在位置の取得に失敗しました:", error);
-                // エラー時にアラートを出すが、マップの動作を妨げない
-                // alert("現在位置の取得に失敗しました。位置情報サービスを有効にしてください。");
-            },
-            {
-                enableHighAccuracy: true, // 高精度な位置情報を要求
-                maximumAge: 0,            // 位置情報のキャッシュを無効にする
-                timeout: 5000             // 5秒以内に位置情報を取得できない場合はタイムアウト
-            }
-        );
-    } else {
-        alert("お使いのブラウザはGeolocationをサポートしていません。");
-    }
-
-
-    async function searchAddress() {
-        const address = document.getElementById('addressInput').value;
-        if (!address) return;
-
-        // 緯度経度形式のチェック (例: "35.681236, 139.767125" または "35.681236 139.767125")
-        const latLngRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$|^(-?\d+(\.\d+)?)\s+(-?\d+(\.\d+)?)$/;
-        const match = address.match(latLngRegex);
-
-        if (match) {
-            // 緯度経度として処理
-            const lat = parseFloat(match[1] || match[5]);
-            const lng = parseFloat(match[3] || match[7]);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                const pos = L.latLng(lat, lng);
-                map.setView(pos, 16);
-                addPin(pos);
-                return;
-            }
-        }
-
-        // 住所検索として処理
-        try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-            const data = await response.json();
-            if (data.length > 0) {
-                const pos = L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
-                map.setView(pos, 16);
-                addPin(pos);
-            } else {
-                alert("指定された住所や緯度経度は見つかりませんでした。");
-            }
-        } catch (e) { 
-            alert("検索中にエラーが発生しました。"); 
-            console.error(e);
-        }
-    }
-
-    function addPin(latlng) {
-        const marker = L.marker(latlng).addTo(map);
-        if (markers.length > 0) {
-            const lastPos = markers[markers.length - 1].getLatLng();
-            const dist = lastPos.distanceTo(latlng);
-            distances.push(dist);
-        }
-        markers.push(marker);
-        polyline.addLatLng(latlng);
-        updateDisplay();
-    }
-
-    function popPin() {
-        if (markers.length === 0) return;
-
-        const lastMarker = markers.pop();
-        map.removeLayer(lastMarker);
-
-        const latlngs = polyline.getLatLngs();
-        if (latlngs.length > 0) {
-            latlngs.pop();
-            polyline.setLatLngs(latlngs);
-        }
-        
-        if (distances.length > 0) {
-            distances.pop();
-        }
-        
-        updateDisplay();
-    }
-
-    function updateDisplay() {
-        const total = distances.reduce((a, b) => a + b, 0);
-        document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2);
-    }
-
-    // ノースアップ機能
-    function northUp() {
-        map.setBearing(0); // 地図の回転を0度にリセット
-        if (headingUpEnabled) {
-            headingUpEnabled = false;
-            window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation);
-            // ボタンの表示をリセット
-            const headingButton = document.querySelector('.control-panel button:nth-child(5)');
-            headingButton.style.backgroundColor = '#007bff';
-            headingButton.innerText = 'ヘディングアップ';
-        }
-    }
-
-    // ヘディングアップ機能
-    let headingUpEnabled = false;
-    function headingUp() {
-        headingUpEnabled = !headingUpEnabled; // トグル
-
-        const headingButton = document.querySelector('.control-panel button:nth-child(5)'); // ヘディングアップボタン
-        
-        if (headingUpEnabled) {
-            headingButton.style.backgroundColor = '#28a745'; // 有効時の色
-            headingButton.innerText = 'ヘディングアップ中';
-
-            // デバイスの向きイベントをリッスン
-            // 許可リクエスト（iOS 13+ の場合）
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
-                        } else {
-                            alert('デバイスの向き情報へのアクセスが拒否されました。設定を確認してください。');
-                            headingUpEnabled = false; // 無効化
-                            headingButton.style.backgroundColor = '#007bff'; // 無効時の色に戻す
-                            headingButton.innerText = 'ヘディングアップ';
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                // 古いブラウザやAndroidの場合
-                window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
-            }
+            );
         } else {
-            headingButton.style.backgroundColor = '#007bff'; // 無効時の色
-            headingButton.innerText = 'ヘディングアップ';
-            window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation);
-            northUp(); // ヘディングアップ解除時にノースアップに戻す
+            alert("お使いのブラウザはGeolocationをサポートしていません。");
         }
-    }
 
-    function handleDeviceOrientation(event) {
-        if (event.alpha !== null) {
-            let heading;
-            // より正確なコンパスヘディングがある場合（iOSなど）
-            if (event.webkitCompassHeading !== undefined) {
-                heading = event.webkitCompassHeading; // 真北からの時計回り
-                heading = 360 - heading; // Leaflet向けに反時計回りに変換
-            } else {
-                // `alpha`は真北からの時計回りの角度
-                // LeafletのsetBearingは反時計回りの角度を期待するので、変換が必要
-                heading = 360 - event.alpha; // 真北からの反時計回りの角度
+
+        async function searchAddress() {
+            const address = document.getElementById('addressInput').value;
+            if (!address) return;
+
+            // 緯度経度形式のチェック (例: "35.681236, 139.767125" または "35.681236 139.767125")
+            const latLngRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$|^(-?\d+(\.\d+)?)\s+(-?\d+(\.\d+)?)$/;
+            const match = address.match(latLngRegex);
+
+            if (match) {
+                // 緯度経度として処理
+                const lat = parseFloat(match[1] || match[5]);
+                const lng = parseFloat(match[3] || match[7]);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    const pos = L.latLng(lat, lng);
+                    map.setView(pos, 16);
+                    addPin(pos);
+                    return;
+                }
             }
-            
-            map.setBearing(heading);
-        }
-    }
 
-    map.on('click', e => addPin(e.latlng));
-</script>
+            // 住所検索として処理
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+                const data = await response.json();
+                if (data.length > 0) {
+                    const pos = L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
+                    map.setView(pos, 16);
+                    addPin(pos);
+                } else {
+                    alert("指定された住所や緯度経度は見つかりませんでした。");
+                }
+            } catch (e) {
+                alert("検索中にエラーが発生しました。");
+                console.error(e);
+            }
+        }
+
+        function addPin(latlng) {
+            const marker = L.marker(latlng).addTo(map);
+            if (markers.length > 0) {
+                const lastPos = markers[markers.length - 1].getLatLng();
+                const dist = lastPos.distanceTo(latlng);
+                distances.push(dist);
+            }
+            markers.push(marker);
+            polyline.addLatLng(latlng);
+            updateDisplay();
+        }
+
+        function popPin() {
+            if (markers.length === 0) return;
+
+            const lastMarker = markers.pop();
+            map.removeLayer(lastMarker);
+
+            const latlngs = polyline.getLatLngs();
+            if (latlngs.length > 0) {
+                latlngs.pop();
+                polyline.setLatLngs(latlngs);
+            }
+
+            if (distances.length > 0) {
+                distances.pop();
+            }
+
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            const total = distances.reduce((a, b) => a + b, 0);
+            document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2);
+        }
+
+        // ノースアップ機能
+        function northUp() {
+            map.setBearing(0); // 地図の回転を0度にリセット
+            if (headingUpEnabled) {
+                headingUpEnabled = false;
+                window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation);
+                // ボタンの表示をリセット
+                const headingButton = document.querySelector('.control-panel button:nth-child(5)');
+                headingButton.style.backgroundColor = '#007bff';
+                headingButton.innerText = 'ヘディングアップ';
+            }
+        }
+
+        // ヘディングアップ機能
+        let headingUpEnabled = false;
+        function headingUp() {
+            headingUpEnabled = !headingUpEnabled; // トグル
+
+            const headingButton = document.querySelector('.control-panel button:nth-child(5)'); // ヘディングアップボタン
+
+            if (headingUpEnabled) {
+                headingButton.style.backgroundColor = '#28a745'; // 有効時の色
+                headingButton.innerText = 'ヘディングアップ中';
+
+                // デバイスの向きイベントをリッスン
+                // 許可リクエスト（iOS 13+ の場合）
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    DeviceOrientationEvent.requestPermission()
+                        .then(permissionState => {
+                            if (permissionState === 'granted') {
+                                window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
+                            } else {
+                                alert('デバイスの向き情報へのアクセスが拒否されました。設定を確認してください。');
+                                headingUpEnabled = false; // 無効化
+                                headingButton.style.backgroundColor = '#007bff'; // 無効時の色に戻す
+                                headingButton.innerText = 'ヘディングアップ';
+                            }
+                        })
+                        .catch(console.error);
+                } else {
+                    // 古いブラウザやAndroidの場合
+                    window.addEventListener('deviceorientationabsolute', handleDeviceOrientation);
+                }
+            } else {
+                headingButton.style.backgroundColor = '#007bff'; // 無効時の色
+                headingButton.innerText = 'ヘディングアップ';
+                window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation);
+                northUp(); // ヘディングアップ解除時にノースアップに戻す
+            }
+        }
+
+        function handleDeviceOrientation(event) {
+            if (event.alpha !== null) {
+                let heading;
+                // より正確なコンパスヘディングがある場合（iOSなど）
+                if (event.webkitCompassHeading !== undefined) {
+                    heading = event.webkitCompassHeading; // 真北からの時計回り
+                    heading = 360 - heading; // Leaflet向けに反時計回りに変換
+                } else {
+                    // `alpha`は真北からの時計回りの角度
+                    // LeafletのsetBearingは反時計回りの角度を期待するので、変換が必要
+                    heading = 360 - event.alpha; // 真北からの反時計回りの角度
+                }
+
+                map.setBearing(heading);
+            }
+        }
+
+        map.on('click', e => addPin(e.latlng));
+    </script>
+</body>
+</html>
