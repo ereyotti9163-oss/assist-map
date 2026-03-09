@@ -6,13 +6,16 @@
     <title>アシストマップ</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- QRコード生成ライブラリを追加 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
         body { margin: 0; padding: 0; font-family: sans-serif; cursor: crosshair; }
         #map { width: 100vw; height: 100vh; z-index: 1; }
         .leaflet-container { cursor: crosshair !important; }
         
+        /* 既存のcontrol-panelを上部に変更 */
         .control-panel {
-            position: absolute; bottom: 10px; left: 10px; right: 10px; z-index: 1000; /* 下部に配置、横幅を広げる */
+            position: absolute; top: 10px; left: 10px; right: 10px; z-index: 1000; /* 上部に配置、横幅を広げる */
             background: rgba(255, 255, 255, 0.95); padding: 8px 10px; /* 縦パディングを少し増やし、横パディングを設ける */
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
@@ -20,6 +23,20 @@
             flex-wrap: wrap; /* 要素が多い場合に折り返す */
             gap: 8px; /* 要素間の隙間 */
             align-items: center; /* 垂直方向中央寄せ */
+            font-size: 13px;
+        }
+
+        /* 新しい下部コントロールパネルのスタイル */
+        .bottom-control-panel {
+            position: absolute; bottom: 10px; left: 10px; right: 10px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95); padding: 8px 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-end; /* 右寄せ */
             font-size: 13px;
         }
 
@@ -37,6 +54,8 @@
             flex-grow: 0; /* 必要に応じて幅を調整 */
         }
         .btn-clear { background: #dc3545; }
+        .btn-green { background: #28a745; } /* 新しいボタンの色 */
+
         .info-panel { 
             background: #f0f4f8; 
             padding: 5px 8px; 
@@ -54,9 +73,55 @@
         .dist-value { font-size: 15px; font-weight: bold; color: #333; text-align: center; }
         .total-dist { color: #d32f2f; }
         
+        /* QRコードモーダルのスタイル */
+        .qr-modal {
+            display: none; /* 初期状態では非表示 */
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .qr-modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 300px;
+            text-align: center;
+            position: relative;
+        }
+        .qr-modal-close {
+            color: #aaa;
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .qr-modal-close:hover,
+        .qr-modal-close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #qrCodeCanvas {
+            width: 250px;
+            height: 250px;
+            margin-top: 10px;
+        }
+
         /* スマートフォンでの表示調整 */
         @media (max-width: 768px) { /* 768px以下でレイアウトを変更 */
-            .control-panel {
+            .control-panel, .bottom-control-panel {
                 flex-direction: column; /* 縦並びに戻す */
                 align-items: stretch; /* 幅いっぱいに広げる */
                 gap: 6px;
@@ -90,6 +155,7 @@
     </style>
 </head>
 <body>
+    <!-- 上部コントロールパネル (既存のものを修正) -->
     <div class="control-panel">
         <div class="input-group">
             <input type="text" id="addressInput" placeholder="住所・施設名・緯度経度を入力">
@@ -97,6 +163,7 @@
         </div>
         <div class="btn-row">
             <button class="btn-clear" onclick="popPin()">ピン1つ消す</button>
+            <button class="btn-clear" onclick="clearAllPins()">すべて消す</button> <!-- 新しいボタン -->
             <button onclick="northUp()">ノースアップ</button>
             <button onclick="headingUp()">ヘディングアップ</button>
         </div>
@@ -109,7 +176,23 @@
             </div>
         </div>
     </div>
+
     <div id="map"></div>
+
+    <!-- 下部コントロールパネル (新設) -->
+    <div class="bottom-control-panel">
+        <button class="btn-green" onclick="showQrCode()">QRコード生成</button> <!-- 新しいボタン -->
+    </div>
+
+    <!-- QRコードモーダル -->
+    <div id="qrCodeModal" class="qr-modal">
+        <div class="qr-modal-content">
+            <span class="qr-modal-close" onclick="closeQrCodeModal()">&times;</span>
+            <h3>現在の地図の中心のQRコード</h3>
+            <canvas id="qrCodeCanvas"></canvas>
+            <p style="font-size: 12px; color: #666;">このQRコードをスキャンすると、現在の地図の中心位置が表示されます。</p>
+        </div>
+    </div>
 
     <script>
         const map = L.map('map').setView([34.8833, 135.7000], 15); // 初期表示は京都駅付近
@@ -147,7 +230,7 @@
                 },
                 (error) => {
                     console.error("現在位置の取得に失敗しました:", error);
-                    alert("現在位置の取得に失敗しました。位置情報サービスを有効にしてください。");
+                    // alert("現在位置の取得に失敗しました。位置情報サービスを有効にしてください。"); // 初回のみに調整
                 },
                 {
                     enableHighAccuracy: true, // 高精度な位置情報を要求
@@ -156,7 +239,7 @@
                 }
             );
         } else {
-            alert("お使いのブラウザはGeolocationをサポートしていません。");
+            // alert("お使いのブラウザはGeolocationをサポートしていません。"); // 初回のみに調整
         }
 
 
@@ -230,6 +313,16 @@
             updateDisplay();
         }
 
+        // すべてのピンを消去する機能
+        function clearAllPins() {
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            polyline.setLatLngs([]);
+            distances = [];
+            updateDisplay();
+            alert("すべてのピンを消去しました。");
+        }
+
         function updateDisplay() {
             const total = distances.reduce((a, b) => a + b, 0);
             document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2);
@@ -283,6 +376,24 @@
                 
                 map.setBearing(heading);
             }
+        }
+
+        // QRコード生成機能
+        function showQrCode() {
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            const mapUrl = `https://www.openstreetmap.org/#map=${zoom}/${center.lat}/${center.lng}`; // OpenStreetMapのURLを生成
+            
+            const qr = new QRious({
+                element: document.getElementById('qrCodeCanvas'),
+                value: mapUrl,
+                size: 250
+            });
+            document.getElementById('qrCodeModal').style.display = 'flex'; // flexで表示して中央寄せ
+        }
+
+        function closeQrCodeModal() {
+            document.getElementById('qrCodeModal').style.display = 'none';
         }
 
         map.on('click', e => addPin(e.latlng));
