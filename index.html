@@ -90,6 +90,27 @@
         .dist-value { font-size: 13px; font-weight: bold; color: #333; text-align: center; }
         .total-dist { color: #d32f2f; }
         
+        /* 現在地ボタンのスタイル */
+        .locate-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+            border: none;
+            font-size: 24px;
+            transition: background 0.3s;
+        }
+        .locate-btn:active { background: #f0f0f0; }
+
         .current-location-icon {
             display: flex;
             justify-content: center;
@@ -151,9 +172,12 @@
         </div>
     </div>
 
+    <button class="locate-btn" onclick="goToCurrentLocation()" title="現在地を表示">🎯</button>
+
     <div id="map"></div>
 
     <script>
+        // 初期表示位置（八幡市付近）
         const map = L.map('map').setView([34.8833, 135.7000], 15);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
@@ -164,6 +188,7 @@
         let distances = []; 
         let currentLocationMarker = null; 
 
+        // GPS監視
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(
                 (position) => {
@@ -195,6 +220,17 @@
             );
         }
 
+        // 現在地へ移動
+        function goToCurrentLocation() {
+            if (currentLocationMarker) {
+                const pos = currentLocationMarker.getLatLng();
+                map.setView(pos, 16, { animate: true });
+            } else {
+                alert("現在地を取得中です。位置情報を許可してください。");
+            }
+        }
+
+        // 検索機能
         async function searchAddress() {
             const address = document.getElementById('addressInput').value;
             if (!address) return;
@@ -221,7 +257,7 @@
                     map.setView(pos, 16);
                     addPin(pos);
                 } else {
-                    alert("指定された住所や緯度経度は見つかりませんでした。");
+                    alert("指定された場所は見つかりませんでした。");
                 }
             } catch (e) { 
                 alert("検索中にエラーが発生しました。"); 
@@ -229,6 +265,7 @@
             }
         }
 
+        // ピン追加
         function addPin(latlng) {
             const marker = L.marker(latlng).addTo(map);
             if (markers.length > 0) {
@@ -241,6 +278,7 @@
             updateDisplay(); 
         }
 
+        // ピンを1つ戻す
         function popPin() {
             if (markers.length === 0) return;
             const lastMarker = markers.pop();
@@ -256,6 +294,7 @@
             updateDisplay(); 
         }
 
+        // 距離表示更新
         function updateDisplay() {
             const total = distances.reduce((a, b) => a + b, 0); 
             document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2); 
@@ -267,7 +306,7 @@
 
         map.on('click', e => addPin(e.latlng));
 
-        // Service Workerの登録（PWA化に必須）
+        // PWA Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
