@@ -12,8 +12,9 @@
     <link rel="manifest" href="manifest.json">
     
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; cursor: crosshair; }
-        #map { width: 100vw; height: 100vh; z-index: 1; }
+        body { margin: 0; padding: 0; font-family: sans-serif; cursor: crosshair; overflow: hidden; }
+        #map-container { width: 100vw; height: 100vh; overflow: hidden; position: relative; background: #ddd; }
+        #map { width: 100%; height: 100%; transition: transform 0.1s ease-out; }
         .leaflet-container { cursor: crosshair !important; }
         
         .control-panel {
@@ -62,6 +63,7 @@
             justify-content: space-between;
         }
         .btn-clear { background: #6c757d; } 
+        .active-mode { background: #dc3545 !important; }
 
         .btn-row button {
             flex-grow: 1; 
@@ -90,7 +92,6 @@
         .dist-value { font-size: 13px; font-weight: bold; color: #333; text-align: center; }
         .total-dist { color: #d32f2f; }
         
-        /* 現在地ボタンのスタイル */
         .locate-btn {
             position: absolute;
             bottom: 20px;
@@ -107,14 +108,11 @@
             cursor: pointer;
             border: none;
             font-size: 24px;
-            transition: background 0.3s;
         }
-        .locate-btn:active { background: #f0f0f0; }
 
-        .current-location-icon {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        /* 回転補正用クラス */
+        .counter-rotate {
+            transition: transform 0.1s ease-out;
         }
 
         @media (min-width: 769px) {
@@ -160,8 +158,8 @@
         </div>
         <div class="btn-row">
             <button class="btn-clear" onclick="popPin()">↩️1つ消す</button>
-            <button onclick="northUp()">▲北上(Nup)</button>
-            <button onclick="alert('この機能は現在サポートされていません。')">▼進行(Hup)</button>
+            <button id="btnNup" class="active-mode" onclick="setNorthUp()">▲北上</button>
+            <button id="btnHup" onclick="setHeadingUp()">▼進行</button>
         </div>
         <div class="info-panel">
             <div class="distance-display">
@@ -174,11 +172,16 @@
 
     <button class="locate-btn" onclick="goToCurrentLocation()" title="現在地を表示">🎯</button>
 
-    <div id="map"></div>
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
 
     <script>
-        // 初期表示位置（八幡市付近）
-        const map = L.map('map').setView([34.8833, 135.7000], 15);
+        const mapElement = document.getElementById('map');
+        const map = L.map('map', { zoomControl: false }).setView([34.8833, 135.7000], 15);
+        
+        L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
@@ -186,7 +189,9 @@
         let markers = [];
         let polyline = L.polyline([], {color: '#d32f2f', weight: 5, opacity: 0.8}).addTo(map);
         let distances = []; 
-        let currentLocationMarker = null; 
+        let currentLocationMarker = null;
+        let isHeadingUp = false;
+        let currentHeading = 0;
 
         // GPS監視
         if (navigator.geolocation) {
@@ -201,54 +206,97 @@
                     } else {
                         currentLocationMarker = L.marker(currentLatLng, {
                             icon: L.divIcon({
-                                className: 'current-location-icon',
+                                className: 'current-location-icon counter-rotate',
                                 html: '<div style="background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>',
                                 iconSize: [20, 20],
                                 iconAnchor: [10, 10]
                             })
                         }).addTo(map);
                     }
+                    if (isHeadingUp) {
+                        map.panTo(currentLatLng);
+                    }
                 },
-                (error) => {
-                    console.error("現在位置の取得に失敗しました:", error);
-                },
-                {
-                    enableHighAccuracy: true,
-                    maximumAge: 0,
-                    timeout: 5000
-                }
+                (error) => console.error(error),
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
             );
         }
 
-        // 現在地へ移動
-        function goToCurrentLocation() {
-            if (currentLocationMarker) {
-                const pos = currentLocationMarker.getLatLng();
-                map.setView(pos, 16, { animate: true });
+        // 方位情報の取得 (Heading Up用)
+        window.addEventListener('deviceorientationabs', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+
+        function handleOrientation(event) {
+            if (!isHeadingUp) return;
+
+            let heading = 0;
+            if (event.webkitCompassHeading) {
+                heading = event.webkitCompassHeading; // iOS
+            } else if (event.absolute && event.alpha) {
+                heading = 360 - event.alpha; // Android
             } else {
-                alert("現在地を取得中です。位置情報を許可してください。");
+                return;
+            }
+
+            if (Math.abs(currentHeading - heading) > 2) { // チャタリング防止
+                currentHeading = heading;
+                rotateMap(currentHeading);
             }
         }
 
-        // 検索機能
-        async function searchAddress() {
-            const address = document.getElementById('addressInput').value;
-            if (!address) return;
+        function rotateMap(deg) {
+            mapElement.style.transform = `rotate(${-deg}deg)`;
+            // アイコンやテキストが逆さまにならないよう補正
+            const elements = document.querySelectorAll('.counter-rotate, .leaflet-marker-icon, .leaflet-popup');
+            elements.forEach(el => {
+                el.style.transform = `rotate(${deg}deg)`;
+            });
+        }
 
-            const latLngRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$|^(-?\d+(\.\d+)?)\s+(-?\d+(\.\d+)?)$/;
-            const match = address.match(latLngRegex);
+        function setNorthUp() {
+            isHeadingUp = false;
+            currentHeading = 0;
+            rotateMap(0);
+            document.getElementById('btnNup').classList.add('active-mode');
+            document.getElementById('btnHup').classList.remove('active-mode');
+        }
 
-            if (match) {
-                const lat = parseFloat(match[1] || match[5]);
-                const lng = parseFloat(match[3] || match[7]);
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    const pos = L.latLng(lat, lng);
-                    map.setView(pos, 16);
-                    addPin(pos);
+        async function setHeadingUp() {
+            // iOSなどのブラウザ制限対応（ユーザー操作による許可が必要な場合があるため）
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                const permission = await DeviceOrientationEvent.requestPermission();
+                if (permission !== 'granted') {
+                    alert('方位情報の利用が許可されませんでした。');
                     return;
                 }
             }
+            isHeadingUp = true;
+            document.getElementById('btnHup').classList.add('active-mode');
+            document.getElementById('btnNup').classList.remove('active-mode');
+            goToCurrentLocation();
+        }
 
+        function goToCurrentLocation() {
+            if (currentLocationMarker) {
+                const pos = currentLocationMarker.getLatLng();
+                map.setView(pos, 17, { animate: true });
+            } else {
+                alert("現在地を取得中です。");
+            }
+        }
+
+        async function searchAddress() {
+            const address = document.getElementById('addressInput').value;
+            if (!address) return;
+            const latLngRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$|^(-?\d+(\.\d+)?)\s+(-?\d+(\.\d+)?)$/;
+            const match = address.match(latLngRegex);
+            if (match) {
+                const lat = parseFloat(match[1] || match[5]);
+                const lng = parseFloat(match[3] || match[7]);
+                addPin(L.latLng(lat, lng));
+                map.setView([lat, lng], 16);
+                return;
+            }
             try {
                 const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
                 const data = await response.json();
@@ -256,64 +304,41 @@
                     const pos = L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
                     map.setView(pos, 16);
                     addPin(pos);
-                } else {
-                    alert("指定された場所は見つかりませんでした。");
                 }
-            } catch (e) { 
-                alert("検索中にエラーが発生しました。"); 
-                console.error(e);
-            }
+            } catch (e) { alert("検索エラー"); }
         }
 
-        // ピン追加
         function addPin(latlng) {
             const marker = L.marker(latlng).addTo(map);
+            // 地図回転中にピンを追加しても正しく表示されるよう補正
+            if (isHeadingUp) {
+                marker._icon.style.transform += ` rotate(${currentHeading}deg)`;
+            }
             if (markers.length > 0) {
                 const lastPos = markers[markers.length - 1].getLatLng();
-                const dist = lastPos.distanceTo(latlng); 
-                distances.push(dist);
+                distances.push(lastPos.distanceTo(latlng));
             }
             markers.push(marker);
             polyline.addLatLng(latlng);
             updateDisplay(); 
         }
 
-        // ピンを1つ戻す
         function popPin() {
             if (markers.length === 0) return;
-            const lastMarker = markers.pop();
-            map.removeLayer(lastMarker);
+            map.removeLayer(markers.pop());
             const latlngs = polyline.getLatLngs();
-            if (latlngs.length > 0) {
-                latlngs.pop();
-                polyline.setLatLngs(latlngs);
-            }
-            if (distances.length > 0) {
-                distances.pop(); 
-            }
+            latlngs.pop();
+            polyline.setLatLngs(latlngs);
+            distances.pop();
             updateDisplay(); 
         }
 
-        // 距離表示更新
         function updateDisplay() {
             const total = distances.reduce((a, b) => a + b, 0); 
             document.getElementById('totalDistance').innerText = (total / 1000).toFixed(2); 
         }
 
-        function northUp() {
-            alert("この機能は現在サポートされていません。（地図の回転には追加のライブラリが必要です）");
-        }
-
         map.on('click', e => addPin(e.latlng));
-
-        // PWA Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Service Worker registered', reg))
-                .catch(err => console.error('Service Worker registration failed', err));
-            });
-        }
 
         updateDisplay();
     </script>
